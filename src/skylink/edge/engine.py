@@ -1,15 +1,17 @@
 """Prequential evaluation engine for one run: aggregation, scoring, model stepping, writing."""
 from __future__ import annotations
 
+import math
 import threading
 import time
 from collections import deque
 
+import httpx
 import numpy as np
 
 from ..influx import Influx, esc_tag
 from ..sim.streams import SPECS
-from .models import REGISTRY, History
+from .models import Features, FeatHist, History, build
 
 
 class StreamState:
@@ -18,7 +20,10 @@ class StreamState:
         self.spec = SPECS[name]
         self.horizons: list[int] = cfg["streams"][name]["horizons"]
         self.hist = History(int(cfg["day_s"]) + max(self.horizons) + 10)
-        self.models = [REGISTRY[m](self.horizons, cfg) for m in cfg["models"]]
+        params = cfg.get("model", {})
+        self.models = [build(m, self.horizons, cfg, params.get(m, {})) for m in cfg["models"]]
+        self.feat, self.fh = Features(), FeatHist(max(self.horizons) + 2)
+        self.cost: dict[str, list] = {}  # model -> [seconds spent in step(), calls]
         self.pending = {(m.name, h): deque() for m in self.models for h in self.horizons}
         self.cur: list | None = None  # [second, sum, sumsq, count]
         self.last_s = -1
@@ -40,6 +45,8 @@ class Engine:
         self.step_ms: deque[float] = deque(maxlen=5000)
         self.max_event_us = 0
         self.base = {"n": 0, "late": 0, "max_lag_us": 0, "max_t": 0}
+        self.hook = None  # optional callback(stream, model, h, s, y, yhat, y_persistence) for offline benches
+        self.nonfinite = 0
 
     def configure(self, run: str, epoch_us: int) -> None:
         with self.lock:
@@ -107,13 +114,34 @@ class Engine:
                     q.popleft()
                 if q and q[0][0] == s:
                     _, yhat = q.popleft()
+                    if not math.isfinite(yhat):  # a diverged model must not poison the store: score it as persistence
+                        self.nonfinite += 1
+                        yhat = st.hist.get(s - h) if st.hist.get(s - h) is not None else y
                     ts = self.epoch_us + s * 1_000_000
                     tags = f"run={run},arm={arm},stream={st.name},model={m.name},horizon={h}"
+                    if self.hook:
+                        self.hook(st.name, m.name, h, s, y, yhat, st.hist.get(s - h))
                     self.buf.append(f"forecast,{tags} yhat={yhat} {ts}")
-                    self.buf.append(f"error,{tags} err={yhat - y},abs_err={abs(yhat - y)},y={y} {ts}")
+                    yp = st.hist.get(s - h)  # what persistence said for this very step: pairs the scores
+                    pers = f",pers_abs_err={abs(yp - y)}" if yp is not None else ""
+                    self.buf.append(f"error,{tags} err={yhat - y},abs_err={abs(yhat - y)}{pers},y={y} {ts}")
+                    if hasattr(m, "on_score"):
+                        m.on_score(s, h, abs(yhat - y))
+        x = st.feat.update(s, y, st.hist)
         for m in st.models:  # train/forecast after scoring
-            for h, yhat in m.step(s, y, st.hist).items():
+            t0 = time.perf_counter()
+            fc = m.step(s, y, st.hist, x, st.fh)
+            c = st.cost.setdefault(m.name, [0.0, 0])
+            c[0] += time.perf_counter() - t0
+            c[1] += 1
+            for h, yhat in fc.items():
                 st.pending[(m.name, h)].append((s + h, yhat))
+            for ds, dh, kind in getattr(m, "events", ()):
+                self.buf.append(f"drift,run={run},arm={arm},stream={st.name},model={m.name},horizon={dh},kind={kind} "
+                                f"n=1i {self.epoch_us + ds * 1_000_000}")
+            if hasattr(m, "events"):
+                m.events.clear()
+        st.fh.put(s, x)
 
     # ---- output ----------------------------------------------------------------------
     def _maybe_flush(self, force: bool = False) -> None:
@@ -125,6 +153,13 @@ class Engine:
             try:
                 for i in range(0, len(lines), 5000):
                     self.influx.write("forecasts", lines[i : i + 5000])
+            except httpx.HTTPStatusError as e:
+                if e.response.status_code == 400:  # malformed lines never become valid: drop, do not retry forever
+                    print("influx rejected a batch (400), dropped", len(lines), "lines; first:", lines[0], flush=True)
+                    return
+                self.buf = lines + self.buf
+                self.buf = self.buf[-200_000:]
+                print("influx write failed:", e, flush=True)
             except Exception as e:  # keep the data, retry next flush; never crash ingest
                 self.buf = lines + self.buf
                 self.buf = self.buf[-200_000:]
@@ -144,7 +179,9 @@ class Engine:
             return {
                 "run": self.run, "arm": self.cfg["arm"], "buffered_lines": len(self.buf),
                 "steps": {n: s.steps for n, s in self.streams.items()},
-                "late_dropped": {n: s.late_dropped for n, s in self.streams.items()},
+                "nonfinite_forecasts": self.nonfinite, "late_dropped": {n: s.late_dropped for n, s in self.streams.items()},
                 "step_ms_p50": float(np.percentile(ms, 50)), "step_ms_p99": float(np.percentile(ms, 99)),
                 "base": dict(self.base),
+                "cost_us_per_step": {f"{n}/{m}": c[0] / c[1] * 1e6 for n, st in self.streams.items()
+                                     for m, c in st.cost.items() if c[1]},
             }

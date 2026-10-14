@@ -1,0 +1,15 @@
+# Plumbing check, all five streams: short, with frequent outages. Not for any verdict.
+[run]
+seed = 1
+duration_days = 0.0417    # one hour
+epoch = "2026-01-01T00:00:00Z"
+streams = ["temp", "pressure", "wind", "vibration", "solar"]
+fault_rate_scale = 12.0
+batch_s = 10
+
+[skylink]
+mean_up_s = 600
+mean_down_s = 240
+max_buffer_points = 3000000
+backfill_chunk_points = 2000
+backfill_shuffle_window = 8

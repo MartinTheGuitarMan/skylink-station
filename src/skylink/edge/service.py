@@ -77,7 +77,9 @@ def _sampler(eng: Engine, influx: Influx, period: float = 5.0) -> None:
             if not eng.max_event_us:
                 continue
             tags = f"run={eng.run},arm={s['arm']}"
-            influx.write("metrics", [
+            cost = [f"model_cost,{tags},stream={k.split('/')[0]},model={k.split('/')[1]} us_per_step={v} {eng.max_event_us}"
+                    for k, v in s["cost_us_per_step"].items()]
+            influx.write("metrics", cost + [
                 f"resource,{tags} cpu_pct={proc.cpu_percent(None)},rss_mb={proc.memory_info().rss / 1e6},"
                 f"step_ms_p50={s['step_ms_p50']},step_ms_p99={s['step_ms_p99']},"
                 f"steps={sum(s['steps'].values())}i,buffered_lines={s['buffered_lines']}i {eng.max_event_us}",

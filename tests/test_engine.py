@@ -18,7 +18,7 @@ def errors(eng):
     out = {}
     for line in eng.buf:
         if line.startswith("error,"):
-            m = re.match(r"error,.*model=(\w+),horizon=(\d+) err=(\S+),abs_err=(\S+),", line)
+            m = re.match(r"error,.*model=(\w+),horizon=(\d+) err=(\S+),abs_err=([^,\s]+)", line)
             out.setdefault((m[1], int(m[2])), []).append(float(m[4]))
     return out
 
@@ -62,3 +62,33 @@ def test_late_points_are_counted_not_scored():
     eng.ingest("temp", [1_000_000], [9.0])
     eng.flush()
     assert eng.streams["temp"].late_dropped == 1
+
+
+def test_direct_model_starts_as_persistence_and_learns_a_trend():
+    from skylink.edge.models import build
+    cfg = {"day_s": 1000, "models": ["lin_lag", "persistence"], "streams": {"temp": {"horizons": [5]}},
+           "arm": "t", "model": {}}
+    eng = Engine(cfg, None)
+    eng.configure("r", 0)
+    feed(eng, 3000, lambda s: 0.01 * s + (s % 7) * 0.001)
+    eng.flush()
+    e = errors(eng)
+    lin, per = np.array(e[("lin_lag", 5)]), np.array(e[("persistence", 5)])
+    assert abs(lin[0] - per[0]) < 1e-6          # untrained == persistence
+    assert lin[-500:].mean() < 0.5 * per[-500:].mean()  # the trend is learned
+
+
+def test_nonfinite_forecast_is_replaced_and_counted():
+    class Bad:
+        name = "bad"
+        def __init__(self): pass
+        def step(self, s, y, hist, x, fh):
+            return {5: float("nan")}
+    eng = Engine(CFG | {"models": ["persistence"], "streams": {"temp": {"horizons": [5]}}}, None)
+    eng.configure("r", 0)
+    st = eng.streams["temp"]
+    st.models.append(Bad())
+    st.pending[("bad", 5)] = __import__("collections").deque()
+    feed(eng, 30, lambda s: float(s))
+    eng.flush()
+    assert eng.nonfinite > 0 and "nan" not in " ".join(eng.buf).lower()
