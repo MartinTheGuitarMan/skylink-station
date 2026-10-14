@@ -1,0 +1,15 @@
+# Plumbing check only: short, with frequent outages. Not for any verdict.
+[run]
+seed = 1
+duration_days = 0.0417    # one hour
+epoch = "2026-01-01T00:00:00Z"
+streams = ["temp"]
+fault_rate_scale = 24.0   # compress a day of faults into the hour
+batch_s = 10
+
+[skylink]
+mean_up_s = 600
+mean_down_s = 240
+max_buffer_points = 3000000
+backfill_chunk_points = 2000
+backfill_shuffle_window = 8

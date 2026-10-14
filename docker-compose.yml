@@ -1,0 +1,82 @@
+# Skylink Station stack. Resource limits are the experiment's budget (see docs/design.md).
+name: skylink
+services:
+  influxdb:
+    image: influxdb:2.7
+    restart: unless-stopped
+    ports: ["${BIND:-127.0.0.1}:8086:8086"]
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: ${INFLUX_USER}
+      DOCKER_INFLUXDB_INIT_PASSWORD: ${INFLUX_PASSWORD}
+      DOCKER_INFLUXDB_INIT_ORG: ${INFLUX_ORG}
+      DOCKER_INFLUXDB_INIT_BUCKET: raw
+      DOCKER_INFLUXDB_INIT_RETENTION: 0
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: ${INFLUX_TOKEN}
+    volumes:
+      - influx-data:/var/lib/influxdb2
+      - ./influx/init:/docker-entrypoint-initdb.d:ro
+    cpus: 1.5
+    mem_limit: 1g
+    healthcheck:
+      test: ["CMD", "influx", "ping"]
+      interval: 5s
+      retries: 20
+
+  nodered:
+    image: nodered/node-red:4.1.16-22
+    restart: unless-stopped
+    ports: ["${BIND:-127.0.0.1}:1880:1880"]
+    environment:
+      TZ: UTC
+      INFLUX_URL: http://influxdb:8086
+      INFLUX_ORG: ${INFLUX_ORG}
+      INFLUX_TOKEN: ${INFLUX_TOKEN}
+      EDGE_URL: http://river:8000
+    volumes:
+      - ./nodered/flows.json:/data/flows.json:ro
+      - ./nodered/settings.js:/data/settings.js:ro
+    depends_on:
+      influxdb: {condition: service_healthy}
+    cpus: 1.0
+    mem_limit: 1g
+
+  river:
+    build: .
+    image: skylink-station:dev
+    restart: unless-stopped
+    ports: ["${BIND:-127.0.0.1}:8000:8000"]
+    environment:
+      INFLUX_URL: http://influxdb:8086
+      INFLUX_ORG: ${INFLUX_ORG}
+      INFLUX_TOKEN: ${INFLUX_TOKEN}
+      EDGE_CONFIG: /app/config/edge.toml
+    volumes:
+      - ./config:/app/config:ro
+    depends_on:
+      influxdb: {condition: service_healthy}
+    cpus: 1.0
+    mem_limit: 768m
+
+  grafana:
+    image: grafana/grafana:13.0.11
+    restart: unless-stopped
+    ports: ["${BIND:-127.0.0.1}:3000:3000"]
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD}
+      GF_USERS_DEFAULT_THEME: dark
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      INFLUX_TOKEN: ${INFLUX_TOKEN}
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      influxdb: {condition: service_healthy}
+    cpus: 0.5
+    mem_limit: 768m
+
+volumes:
+  influx-data:
+  grafana-data:

@@ -1,0 +1,398 @@
+{
+ "uid": "skylink-main",
+ "title": "Skylink Station",
+ "schemaVersion": 39,
+ "version": 1,
+ "editable": false,
+ "timezone": "utc",
+ "refresh": "10s",
+ "time": {
+  "from": "2026-01-01T00:00:00.000Z",
+  "to": "2026-01-01T01:00:00.000Z"
+ },
+ "tags": [
+  "skylink"
+ ],
+ "annotations": {
+  "list": []
+ },
+ "templating": {
+  "list": [
+   {
+    "name": "run",
+    "label": "Run",
+    "type": "query",
+    "datasource": {
+     "type": "influxdb",
+     "uid": "influx"
+    },
+    "query": "import \"influxdata/influxdb/schema\"\nschema.tagValues(bucket: \"raw\", tag: \"run\", start: 2000-01-01T00:00:00Z, predicate: (r) => r._measurement == \"sensor\")",
+    "refresh": 2,
+    "multi": false,
+    "includeAll": false,
+    "sort": 3,
+    "hide": 0
+   },
+   {
+    "name": "stream",
+    "label": "Stream",
+    "type": "query",
+    "datasource": {
+     "type": "influxdb",
+     "uid": "influx"
+    },
+    "query": "import \"influxdata/influxdb/schema\"\nschema.tagValues(bucket: \"raw\", tag: \"stream\", start: 2000-01-01T00:00:00Z, predicate: (r) => r._measurement == \"sensor\")",
+    "refresh": 2,
+    "multi": false,
+    "includeAll": false,
+    "sort": 3,
+    "hide": 0
+   },
+   {
+    "name": "arm",
+    "label": "Arm",
+    "type": "query",
+    "datasource": {
+     "type": "influxdb",
+     "uid": "influx"
+    },
+    "query": "import \"influxdata/influxdb/schema\"\nschema.tagValues(bucket: \"forecasts\", tag: \"arm\", start: 2000-01-01T00:00:00Z)",
+    "refresh": 2,
+    "multi": true,
+    "includeAll": true,
+    "sort": 3,
+    "hide": 0
+   },
+   {
+    "name": "model",
+    "label": "Model",
+    "type": "query",
+    "datasource": {
+     "type": "influxdb",
+     "uid": "influx"
+    },
+    "query": "import \"influxdata/influxdb/schema\"\nschema.tagValues(bucket: \"forecasts\", tag: \"model\", start: 2000-01-01T00:00:00Z)",
+    "refresh": 2,
+    "multi": true,
+    "includeAll": true,
+    "sort": 3,
+    "hide": 0
+   },
+   {
+    "name": "horizon",
+    "label": "Horizon (s)",
+    "type": "query",
+    "datasource": {
+     "type": "influxdb",
+     "uid": "influx"
+    },
+    "query": "import \"influxdata/influxdb/schema\"\nschema.tagValues(bucket: \"forecasts\", tag: \"horizon\", start: 2000-01-01T00:00:00Z, predicate: (r) => r._measurement == \"forecast\")",
+    "refresh": 2,
+    "multi": false,
+    "includeAll": false,
+    "sort": 3,
+    "hide": 0
+   }
+  ]
+ },
+ "panels": [
+  {
+   "id": 1,
+   "title": "Data vs forecast",
+   "type": "timeseries",
+   "datasource": {
+    "type": "influxdb",
+    "uid": "influx"
+   },
+   "description": "1 s mean of the raw stream against each model's forecast for the same instant, made `horizon` seconds earlier. Raw stream shows what crossed Skylink (gaps during outages, then backfill).",
+   "gridPos": {
+    "x": 0,
+    "y": 0,
+    "w": 16,
+    "h": 9
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "influxdb",
+      "uid": "influx"
+     },
+     "query": "from(bucket: \"raw\") |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"sensor\" and r.run == \"${run}\" and r.stream == \"${stream}\" and r._field == \"value\")\n  |> aggregateWindow(every: if int(v: v.windowPeriod) > 1000000000 then v.windowPeriod else 1s, fn: mean, createEmpty: false)\n  |> map(fn: (r) => ({_time: r._time, _value: r._value, model: \"actual\"}))\n  |> group(columns: [\"model\"])"
+    },
+    {
+     "refId": "B",
+     "datasource": {
+      "type": "influxdb",
+      "uid": "influx"
+     },
+     "query": "from(bucket: \"forecasts\") |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"forecast\" and r.run == \"${run}\" and r.stream == \"${stream}\" and r.horizon == \"${horizon}\" and r.arm =~ /^${arm:regex}$/ and r.model =~ /^${model:regex}$/)\n  |> aggregateWindow(every: if int(v: v.windowPeriod) > 1000000000 then v.windowPeriod else 1s, fn: mean, createEmpty: false)\n  |> map(fn: (r) => ({_time: r._time, _value: r._value, model: r.arm + \"/\" + r.model}))\n  |> group(columns: [\"model\"])"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short"
+    },
+    "overrides": []
+   },
+   "options": {}
+  },
+  {
+   "id": 2,
+   "title": "Skylink link state",
+   "type": "state-timeline",
+   "datasource": {
+    "type": "influxdb",
+    "uid": "influx"
+   },
+   "description": "Seeded Markov on/off chain, stepped in event time.",
+   "gridPos": {
+    "x": 16,
+    "y": 0,
+    "w": 8,
+    "h": 4
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "influxdb",
+      "uid": "influx"
+     },
+     "query": "from(bucket: \"raw\") |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"skylink\" and r.run == \"${run}\" and r._field == \"up\")\n  |> keep(columns: [\"_time\", \"_value\"]) |> map(fn: (r) => ({r with _value: r._value, link: \"Skylink\"})) |> group(columns: [\"link\"])"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "mappings": [
+      {
+       "type": "value",
+       "options": {
+        "0": {
+         "text": "OUTAGE",
+         "color": "red",
+         "index": 0
+        },
+        "1": {
+         "text": "up",
+         "color": "green",
+         "index": 1
+        }
+       }
+      }
+     ],
+     "custom": {
+      "fillOpacity": 70
+     },
+     "unit": "short"
+    },
+    "overrides": []
+   },
+   "options": {
+    "showValue": "never",
+    "mergeValues": true
+   }
+  },
+  {
+   "id": 3,
+   "title": "Ground-truth events (this stream)",
+   "type": "table",
+   "datasource": {
+    "type": "influxdb",
+    "uid": "influx"
+   },
+   "description": "Sensor faults and process events injected by the simulator. t1_us is the end of the event.",
+   "gridPos": {
+    "x": 16,
+    "y": 4,
+    "w": 8,
+    "h": 5
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "influxdb",
+      "uid": "influx"
+     },
+     "query": "from(bucket: \"raw\") |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"truth_event\" and r.run == \"${run}\" and (r.stream == \"${stream}\") and (r.kind != \"spike\" and r.kind != \"burst\" and r.kind != \"gust\" and r.kind != \"cloud\"))\n  |> pivot(rowKey: [\"_time\", \"stream\", \"kind\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> keep(columns: [\"_time\", \"stream\", \"kind\", \"mag\", \"t1_us\", \"id\"]) |> group()"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short"
+    },
+    "overrides": []
+   },
+   "options": {}
+  },
+  {
+   "id": 4,
+   "title": "Rolling error (MAE) by model",
+   "type": "timeseries",
+   "datasource": {
+    "type": "influxdb",
+    "uid": "influx"
+   },
+   "description": "Mean absolute error per window, prequential. Lower is better; persistence is the bar to beat.",
+   "gridPos": {
+    "x": 0,
+    "y": 9,
+    "w": 12,
+    "h": 8
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "influxdb",
+      "uid": "influx"
+     },
+     "query": "from(bucket: \"forecasts\") |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"error\" and r._field == \"abs_err\" and r.run == \"${run}\" and r.stream == \"${stream}\" and r.horizon == \"${horizon}\" and r.arm =~ /^${arm:regex}$/ and r.model =~ /^${model:regex}$/)\n  |> aggregateWindow(every: if int(v: v.windowPeriod) > 60000000000 then v.windowPeriod else 1m, fn: mean, createEmpty: false)\n  |> map(fn: (r) => ({_time: r._time, _value: r._value, model: r.arm + \"/\" + r.model}))\n  |> group(columns: [\"model\"])"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short"
+    },
+    "overrides": []
+   },
+   "options": {}
+  },
+  {
+   "id": 5,
+   "title": "MAE over the selected range, all horizons",
+   "type": "bargauge",
+   "datasource": {
+    "type": "influxdb",
+    "uid": "influx"
+   },
+   "description": "",
+   "gridPos": {
+    "x": 12,
+    "y": 9,
+    "w": 12,
+    "h": 8
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "influxdb",
+      "uid": "influx"
+     },
+     "query": "from(bucket: \"forecasts\") |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"error\" and r._field == \"abs_err\" and r.run == \"${run}\" and r.stream == \"${stream}\" and r.arm =~ /^${arm:regex}$/)\n  |> group(columns: [\"model\", \"horizon\"]) |> mean()\n  |> map(fn: (r) => ({_time: r._stop, _value: r._value, name: r.model + \" h=\" + r.horizon + \"s\"}))\n  |> group(columns: [\"name\"])"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short"
+    },
+    "overrides": []
+   },
+   "options": {
+    "orientation": "horizontal",
+    "displayMode": "gradient"
+   }
+  },
+  {
+   "id": 6,
+   "title": "Late / backfilled data reaching the base",
+   "type": "timeseries",
+   "datasource": {
+    "type": "influxdb",
+    "uid": "influx"
+   },
+   "description": "Points that crossed Skylink late (more than 2 s behind the newest) and how far behind (s).",
+   "gridPos": {
+    "x": 0,
+    "y": 17,
+    "w": 8,
+    "h": 7
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "influxdb",
+      "uid": "influx"
+     },
+     "query": "from(bucket: \"metrics\") |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"base_arrival\" and r.run == \"${run}\" and (r._field == \"late_n\" or r._field == \"max_lag_s\"))\n  |> group(columns: [\"_field\"])"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short"
+    },
+    "overrides": []
+   },
+   "options": {}
+  },
+  {
+   "id": 7,
+   "title": "River service resource use",
+   "type": "timeseries",
+   "datasource": {
+    "type": "influxdb",
+    "uid": "influx"
+   },
+   "description": "CPU percent of one core, RSS MB and p99 per-step latency (ms) of the river container's process.",
+   "gridPos": {
+    "x": 8,
+    "y": 17,
+    "w": 8,
+    "h": 7
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "influxdb",
+      "uid": "influx"
+     },
+     "query": "from(bucket: \"metrics\") |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"resource\" and r.run == \"${run}\" and (r._field == \"cpu_pct\" or r._field == \"rss_mb\" or r._field == \"step_ms_p99\"))\n  |> aggregateWindow(every: if int(v: v.windowPeriod) > 10000000000 then v.windowPeriod else 10s, fn: mean, createEmpty: false)\n  |> group(columns: [\"_field\", \"arm\"])"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short"
+    },
+    "overrides": []
+   },
+   "options": {}
+  },
+  {
+   "id": 8,
+   "title": "Agent decisions",
+   "type": "table",
+   "datasource": {
+    "type": "influxdb",
+    "uid": "influx"
+   },
+   "description": "Agent proposals and guardrail verdicts (empty until the agent layer is on).",
+   "gridPos": {
+    "x": 16,
+    "y": 17,
+    "w": 8,
+    "h": 7
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "influxdb",
+      "uid": "influx"
+     },
+     "query": "from(bucket: \"agent\") |> range(start: 2000-01-01T00:00:00Z)\n  |> filter(fn: (r) => r._measurement == \"decision\" and r.run == \"${run}\")\n  |> pivot(rowKey: [\"_time\", \"stream\", \"kind\"], columnKey: [\"_field\"], valueColumn: \"_value\") |> group()"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short"
+    },
+    "overrides": []
+   },
+   "options": {}
+  }
+ ]
+}

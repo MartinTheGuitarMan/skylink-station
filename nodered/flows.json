@@ -1,0 +1,326 @@
+[
+ {
+  "id": "skylink_tab",
+  "type": "tab",
+  "label": "Skylink edge",
+  "disabled": false,
+  "info": "Ingest, Skylink outage model, store-and-forward, backfill."
+ },
+ {
+  "id": "in_ingest",
+  "type": "http in",
+  "z": "skylink_tab",
+  "name": "POST /ingest",
+  "url": "/ingest",
+  "method": "post",
+  "upload": false,
+  "swaggerDoc": "",
+  "x": 130,
+  "y": 100,
+  "wires": [
+   [
+    "gate"
+   ]
+  ]
+ },
+ {
+  "id": "gate",
+  "type": "function",
+  "z": "skylink_tab",
+  "name": "skylink gate",
+  "func": "// Shared helpers, prepended to every function body by scripts/build_flows.py.\nfunction mulberry32(st, key) {\n    key = key || 'rs';   // 'rs' drives the link chain, 'rb' the backfill shuffle: never mix them\n    st[key] = (st[key] + 0x6D2B79F5) | 0;\n    let t = Math.imul(st[key] ^ (st[key] >>> 15), 1 | st[key]);\n    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;\n    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;\n}\nfunction toLines(b) {\n    const pre = 'sensor,run=' + b.run + ',stream=' + b.stream + ' ';\n    const n = b.t.length, nf = b.fields.length, L = new Array(n);\n    for (let i = 0; i < n; i++) {\n        let f = '';\n        for (let j = 0; j < nf; j++) f += (j ? ',' : '') + b.fields[j] + '=' + b.v[j][i];\n        L[i] = pre + f + ' ' + b.t[i];\n    }\n    return L;\n}\n\n// The Skylink gate. One message = one sensor batch {run, stream, fields, t[us], v[[...]]}.\n// Outputs: 0 edge tap (original msg, carries the HTTP response), 1 influx live, 2 base live,\n//          3 influx backfill (rate limited), 4 base backfill (rate limited).\nconst p = msg.payload;\nconst st = flow.get('st');\nconst base = (b) => ({ payload: b, method: 'POST', url: env.get('EDGE_URL') + '/base/ingest' });\nmsg.method = 'POST'; msg.url = env.get('EDGE_URL') + '/edge/ingest';   // http request nodes take url from msg\nconst O = [[msg], [], [], [], []];\nconst npts = p.t.length;\nif (!st || st.run !== p.run) {            // no link model configured: transparent pass-through\n    O[1].push({ payload: p });\n    O[2].push(base(p));\n    return O;\n}\nst.n.in += npts;\nconst cfg = st.cfg;\nconst link = (up, ts) => ({ payload: 'skylink,run=' + st.run + ' up=' + (up ? 1 : 0) + 'i,buffered=' + st.bufPts +\n                            'i,dropped=' + st.n.dropped + 'i ' + ts });\n// advance the Markov chain in event time to the end of this batch\nconst endS = Math.floor((p.t[npts - 1] - st.epoch_us) / 1000000);\nlet backfill = false;\nwhile (st.clock < endS) {\n    st.clock++;\n    const u = mulberry32(st);\n    const ts = st.epoch_us + st.clock * 1000000;\n    if (st.up) {\n        if (u < 1 / cfg.mean_up_s) { st.up = false; st.n.outages++; O[1].push(link(false, ts)); }\n    } else if (u < 1 / cfg.mean_down_s) {\n        st.up = true; backfill = true; O[1].push(link(true, ts));\n    }\n}\nif (st.up) {\n    O[1].push({ payload: p }); O[2].push(base(p));\n    st.n.live += npts;\n} else {\n    st.buffer.push(p); st.bufPts += npts; st.n.buffered += npts;\n    while (st.bufPts > cfg.max_buffer_points && st.buffer.length > 1) {   // finite local storage: drop oldest\n        const d = st.buffer.shift(); st.bufPts -= d.t.length; st.n.dropped += d.t.length;\n    }\n}\nif (backfill && st.up) {\n    // merge buffered batches per stream into chunks, then shuffle chunk order inside windows\n    const acc = {}, chunks = [];\n    for (const b of st.buffer) {\n        let a = acc[b.stream];\n        if (!a) { a = acc[b.stream] = { run: b.run, stream: b.stream, fields: b.fields, t: [], v: b.fields.map(() => []) }; }\n        a.t = a.t.concat(b.t);\n        b.v.forEach((col, j) => { a.v[j] = a.v[j].concat(col); });\n        if (a.t.length >= cfg.backfill_chunk_points) { chunks.push(a); acc[b.stream] = null; }\n    }\n    for (const k in acc) if (acc[k]) chunks.push(acc[k]);\n    const W = Math.max(1, cfg.backfill_shuffle_window);\n    for (let i = 0; i < chunks.length; i += W) {\n        const w = chunks.slice(i, i + W);\n        for (let j = w.length - 1; j > 0; j--) { const r = Math.floor(mulberry32(st, 'rb') * (j + 1)); const x = w[j]; w[j] = w[r]; w[r] = x; }\n        for (const c of w) { O[3].push({ payload: c }); O[4].push(base(c)); st.n.backfilled += c.t.length; }\n    }\n    st.buffer = []; st.bufPts = 0;\n}\nreturn O;\n",
+  "outputs": 5,
+  "timeout": 0,
+  "noerr": 0,
+  "initialize": "",
+  "finalize": "",
+  "libs": [],
+  "x": 300,
+  "y": 100,
+  "wires": [
+   [
+    "req_edge"
+   ],
+   [
+    "to_lp"
+   ],
+   [
+    "req_base"
+   ],
+   [
+    "delay_influx"
+   ],
+   [
+    "delay_base"
+   ]
+  ]
+ },
+ {
+  "id": "req_edge",
+  "type": "http request",
+  "z": "skylink_tab",
+  "name": "edge tap -> river",
+  "method": "use",
+  "ret": "obj",
+  "paytoqs": "ignore",
+  "url": "",
+  "tls": "",
+  "persist": false,
+  "proxy": "",
+  "insecureHTTPParser": false,
+  "authType": "",
+  "senderr": false,
+  "headers": [],
+  "x": 700,
+  "y": 40,
+  "wires": [
+   [
+    "resp_ingest"
+   ]
+  ]
+ },
+ {
+  "id": "resp_ingest",
+  "type": "http response",
+  "z": "skylink_tab",
+  "name": "",
+  "statusCode": "202",
+  "headers": {},
+  "x": 950,
+  "y": 40,
+  "wires": []
+ },
+ {
+  "id": "req_base",
+  "type": "http request",
+  "z": "skylink_tab",
+  "name": "after Skylink -> river base",
+  "method": "use",
+  "ret": "obj",
+  "paytoqs": "ignore",
+  "url": "",
+  "tls": "",
+  "persist": false,
+  "proxy": "",
+  "insecureHTTPParser": false,
+  "authType": "",
+  "senderr": false,
+  "headers": [],
+  "x": 700,
+  "y": 180,
+  "wires": [
+   []
+  ]
+ },
+ {
+  "id": "delay_influx",
+  "type": "delay",
+  "z": "skylink_tab",
+  "name": "backfill rate limit (influx)",
+  "pauseType": "rate",
+  "timeout": "5",
+  "timeoutUnits": "seconds",
+  "rate": "20",
+  "nbRateUnits": "1",
+  "rateUnits": "second",
+  "randomFirst": "1",
+  "randomLast": "5",
+  "randomUnits": "seconds",
+  "drop": false,
+  "allowrate": false,
+  "outputs": 1,
+  "x": 480,
+  "y": 240,
+  "wires": [
+   [
+    "to_lp"
+   ]
+  ]
+ },
+ {
+  "id": "delay_base",
+  "type": "delay",
+  "z": "skylink_tab",
+  "name": "backfill rate limit (base)",
+  "pauseType": "rate",
+  "timeout": "5",
+  "timeoutUnits": "seconds",
+  "rate": "20",
+  "nbRateUnits": "1",
+  "rateUnits": "second",
+  "randomFirst": "1",
+  "randomLast": "5",
+  "randomUnits": "seconds",
+  "drop": false,
+  "allowrate": false,
+  "outputs": 1,
+  "x": 480,
+  "y": 300,
+  "wires": [
+   [
+    "req_base"
+   ]
+  ]
+ },
+ {
+  "id": "to_lp",
+  "type": "function",
+  "z": "skylink_tab",
+  "name": "build influx write",
+  "func": "// Shared helpers, prepended to every function body by scripts/build_flows.py.\nfunction mulberry32(st, key) {\n    key = key || 'rs';   // 'rs' drives the link chain, 'rb' the backfill shuffle: never mix them\n    st[key] = (st[key] + 0x6D2B79F5) | 0;\n    let t = Math.imul(st[key] ^ (st[key] >>> 15), 1 | st[key]);\n    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;\n    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;\n}\nfunction toLines(b) {\n    const pre = 'sensor,run=' + b.run + ',stream=' + b.stream + ' ';\n    const n = b.t.length, nf = b.fields.length, L = new Array(n);\n    for (let i = 0; i < n; i++) {\n        let f = '';\n        for (let j = 0; j < nf; j++) f += (j ? ',' : '') + b.fields[j] + '=' + b.v[j][i];\n        L[i] = pre + f + ' ' + b.t[i];\n    }\n    return L;\n}\n\n// Build the InfluxDB write request (bucket raw, microsecond precision) from a batch or a ready line string.\nconst lines = (typeof msg.payload === 'string') ? msg.payload : toLines(msg.payload).join('\\n');\nreturn {\n    method: 'POST',\n    url: env.get('INFLUX_URL') + '/api/v2/write?org=' + env.get('INFLUX_ORG') + '&bucket=raw&precision=us',\n    headers: { Authorization: 'Token ' + env.get('INFLUX_TOKEN') },\n    payload: lines\n};\n",
+  "outputs": 1,
+  "timeout": 0,
+  "noerr": 0,
+  "initialize": "",
+  "finalize": "",
+  "libs": [],
+  "x": 500,
+  "y": 380,
+  "wires": [
+   [
+    "req_influx"
+   ]
+  ]
+ },
+ {
+  "id": "req_influx",
+  "type": "http request",
+  "z": "skylink_tab",
+  "name": "influx raw (url from msg)",
+  "method": "use",
+  "ret": "txt",
+  "paytoqs": "ignore",
+  "url": "",
+  "tls": "",
+  "persist": false,
+  "proxy": "",
+  "insecureHTTPParser": false,
+  "authType": "",
+  "senderr": false,
+  "headers": [],
+  "x": 740,
+  "y": 380,
+  "wires": [
+   [
+    "check_write"
+   ]
+  ]
+ },
+ {
+  "id": "check_write",
+  "type": "function",
+  "z": "skylink_tab",
+  "name": "check write",
+  "func": "if (msg.statusCode !== 204) node.warn('influx write failed: ' + msg.statusCode + ' ' + msg.payload);\nreturn null;\n",
+  "outputs": 1,
+  "timeout": 0,
+  "noerr": 0,
+  "initialize": "",
+  "finalize": "",
+  "libs": [],
+  "x": 940,
+  "y": 380,
+  "wires": [
+   []
+  ]
+ },
+ {
+  "id": "in_config",
+  "type": "http in",
+  "z": "skylink_tab",
+  "name": "POST /config",
+  "url": "/config",
+  "method": "post",
+  "upload": false,
+  "swaggerDoc": "",
+  "x": 130,
+  "y": 500,
+  "wires": [
+   [
+    "cfg_fn"
+   ]
+  ]
+ },
+ {
+  "id": "cfg_fn",
+  "type": "function",
+  "z": "skylink_tab",
+  "name": "configure run",
+  "func": "// Shared helpers, prepended to every function body by scripts/build_flows.py.\nfunction mulberry32(st, key) {\n    key = key || 'rs';   // 'rs' drives the link chain, 'rb' the backfill shuffle: never mix them\n    st[key] = (st[key] + 0x6D2B79F5) | 0;\n    let t = Math.imul(st[key] ^ (st[key] >>> 15), 1 | st[key]);\n    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;\n    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;\n}\nfunction toLines(b) {\n    const pre = 'sensor,run=' + b.run + ',stream=' + b.stream + ' ';\n    const n = b.t.length, nf = b.fields.length, L = new Array(n);\n    for (let i = 0; i < n; i++) {\n        let f = '';\n        for (let j = 0; j < nf; j++) f += (j ? ',' : '') + b.fields[j] + '=' + b.v[j][i];\n        L[i] = pre + f + ' ' + b.t[i];\n    }\n    return L;\n}\n\n// POST /config  (from the simulator, at run start or resume). Resets the link model.\nconst c = msg.payload;\nconst D = { mean_up_s: 14400, mean_down_s: 2400, max_buffer_points: 3000000,\n            backfill_chunk_points: 5000, backfill_shuffle_window: 8 };\nconst cfg = {};\nfor (const k in D) cfg[k] = (c[k] !== undefined) ? c[k] : D[k];\nconst st = {\n    run: c.run, epoch_us: c.epoch_us, cfg: cfg,\n    rs: ((c.seed * 2654435761) ^ 0x9E3779B9) | 0,\n    rb: ((c.seed * 40503) ^ 0x85EBCA6B) | 0,\n    clock: 0, up: true, buffer: [], bufPts: 0,\n    n: { in: 0, live: 0, buffered: 0, backfilled: 0, dropped: 0, outages: 0 }\n};\n// Replay the Markov chain up to the resume point, so the outage schedule is identical after a restart.\nconst resume = c.resume_s || 0;\nwhile (st.clock < resume) {\n    st.clock++;\n    const u = mulberry32(st);\n    if (st.up) { if (u < 1 / cfg.mean_up_s) st.up = false; }\n    else if (u < 1 / cfg.mean_down_s) st.up = true;\n}\nflow.set('st', st);\nconst ts = st.epoch_us + st.clock * 1000000;\nmsg.payload = { ok: true, up: st.up, clock: st.clock };\nmsg.statusCode = 200;\nmsg.influx = 'skylink,run=' + st.run + ' up=' + (st.up ? 1 : 0) + 'i,buffered=0i,dropped=0i ' + ts;\nreturn [msg, { payload: msg.influx }];\n",
+  "outputs": 2,
+  "timeout": 0,
+  "noerr": 0,
+  "initialize": "",
+  "finalize": "",
+  "libs": [],
+  "x": 330,
+  "y": 500,
+  "wires": [
+   [
+    "resp_config"
+   ],
+   [
+    "to_lp"
+   ]
+  ]
+ },
+ {
+  "id": "resp_config",
+  "type": "http response",
+  "z": "skylink_tab",
+  "name": "",
+  "statusCode": "",
+  "headers": {},
+  "x": 950,
+  "y": 500,
+  "wires": []
+ },
+ {
+  "id": "in_state",
+  "type": "http in",
+  "z": "skylink_tab",
+  "name": "GET /state",
+  "url": "/state",
+  "method": "get",
+  "upload": false,
+  "swaggerDoc": "",
+  "x": 130,
+  "y": 580,
+  "wires": [
+   [
+    "state_fn"
+   ]
+  ]
+ },
+ {
+  "id": "state_fn",
+  "type": "function",
+  "z": "skylink_tab",
+  "name": "link state",
+  "func": "// GET /state: link model counters, used to check point accounting (C8).\nconst st = flow.get('st');\nmsg.payload = st ? { run: st.run, up: st.up, clock: st.clock, buffered_now: st.bufPts, n: st.n } : { configured: false };\nmsg.statusCode = 200;\nreturn msg;\n",
+  "outputs": 1,
+  "timeout": 0,
+  "noerr": 0,
+  "initialize": "",
+  "finalize": "",
+  "libs": [],
+  "x": 330,
+  "y": 580,
+  "wires": [
+   [
+    "resp_state"
+   ]
+  ]
+ },
+ {
+  "id": "resp_state",
+  "type": "http response",
+  "z": "skylink_tab",
+  "name": "",
+  "statusCode": "",
+  "headers": {},
+  "x": 950,
+  "y": 580,
+  "wires": []
+ }
+]

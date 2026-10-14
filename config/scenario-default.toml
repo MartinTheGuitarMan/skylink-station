@@ -1,0 +1,15 @@
+# Default scenario. Verdict runs use the locked seeds from docs/success-criteria.md.
+[run]
+seed = 1
+duration_days = 7
+epoch = "2026-01-01T00:00:00Z"
+streams = ["temp", "pressure", "wind", "vibration", "solar"]
+fault_rate_scale = 1.0
+batch_s = 10
+
+[skylink]            # sent to Node-RED at run start; stepped in event time
+mean_up_s = 14400    # mean link-up time (geometric, one step per second)
+mean_down_s = 2400   # mean outage (minutes to hours)
+max_buffer_points = 3000000
+backfill_chunk_points = 5000
+backfill_shuffle_window = 8   # chunks shuffled within a window of this size: late, out-of-order
