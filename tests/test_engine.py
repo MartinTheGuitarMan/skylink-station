@@ -92,3 +92,18 @@ def test_nonfinite_forecast_is_replaced_and_counted():
     feed(eng, 30, lambda s: float(s))
     eng.flush()
     assert eng.nonfinite > 0 and "nan" not in " ".join(eng.buf).lower()
+
+
+def test_model_exception_is_contained_and_counted():
+    class Boom:
+        name = "boom"
+        def step(self, s, y, hist, x, fh):
+            raise ZeroDivisionError("library bug")
+    eng = Engine(CFG | {"models": ["persistence"], "streams": {"temp": {"horizons": [5]}}}, None)
+    eng.configure("r", 0)
+    eng.streams["temp"].models.append(Boom())
+    eng.streams["temp"].pending[("boom", 5)] = __import__("collections").deque()
+    feed(eng, 30, lambda s: float(s))
+    eng.flush()
+    assert eng.stats()["model_crashes"]["temp/boom"] > 20
+    assert eng.streams["temp"].steps == 30

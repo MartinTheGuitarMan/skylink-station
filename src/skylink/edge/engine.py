@@ -23,6 +23,7 @@ class StreamState:
         params = cfg.get("model", {})
         self.models = [build(m, self.horizons, cfg, params.get(m, {})) for m in cfg["models"]]
         self.feat, self.fh = Features(), FeatHist(max(self.horizons) + 2)
+        self.crashes: dict[str, int] = {}
         self.cost: dict[str, list] = {}  # model -> [seconds spent in step(), calls]
         self.pending = {(m.name, h): deque() for m in self.models for h in self.horizons}
         self.cur: list | None = None  # [second, sum, sumsq, count]
@@ -126,11 +127,24 @@ class Engine:
                     pers = f",pers_abs_err={abs(yp - y)}" if yp is not None else ""
                     self.buf.append(f"error,{tags} err={yhat - y},abs_err={abs(yhat - y)}{pers},y={y} {ts}")
                     if hasattr(m, "on_score"):
-                        m.on_score(s, h, abs(yhat - y))
+                        try:
+                            m.on_score(s, h, abs(yhat - y))
+                        except Exception:
+                            st.crashes[m.name] = st.crashes.get(m.name, 0) + 1
         x = st.feat.update(s, y, st.hist)
         for m in st.models:  # train/forecast after scoring
             t0 = time.perf_counter()
-            fc = m.step(s, y, st.hist, x, st.fh)
+            try:
+                fc = m.step(s, y, st.hist, x, st.fh)
+            except Exception as e:  # a library bug on odd data (stuck sensor, zero variance) must not stop the station
+                fc = {}
+                st.crashes[m.name] = st.crashes.get(m.name, 0) + 1
+                if hasattr(m, "recover"):
+                    m.recover()
+                self.buf.append(f"drift,run={run},arm={arm},stream={st.name},model={m.name},horizon=0,kind=crash "
+                                f"n=1i {self.epoch_us + s * 1_000_000}")
+                if st.crashes[m.name] <= 3:
+                    print(f"model {m.name} on {st.name} crashed at s={s}: {type(e).__name__}: {e}", flush=True)
             c = st.cost.setdefault(m.name, [0.0, 0])
             c[0] += time.perf_counter() - t0
             c[1] += 1
@@ -179,7 +193,8 @@ class Engine:
             return {
                 "run": self.run, "arm": self.cfg["arm"], "buffered_lines": len(self.buf),
                 "steps": {n: s.steps for n, s in self.streams.items()},
-                "nonfinite_forecasts": self.nonfinite, "late_dropped": {n: s.late_dropped for n, s in self.streams.items()},
+                "nonfinite_forecasts": self.nonfinite,
+                "model_crashes": {f"{n}/{m}": c for n, st in self.streams.items() for m, c in st.crashes.items()}, "late_dropped": {n: s.late_dropped for n, s in self.streams.items()},
                 "step_ms_p50": float(np.percentile(ms, 50)), "step_ms_p99": float(np.percentile(ms, 99)),
                 "base": dict(self.base),
                 "cost_us_per_step": {f"{n}/{m}": c[0] / c[1] * 1e6 for n, st in self.streams.items()

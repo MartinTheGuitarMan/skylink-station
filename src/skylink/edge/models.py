@@ -182,6 +182,11 @@ class Direct:
         self.static_after, self.first_s, self.stride = static_after, None, stride
         self.events: list[tuple[int, int, str]] = []  # (second, horizon, kind), drained by the engine
 
+    def recover(self) -> None:
+        """After a library exception: start every horizon fresh rather than keep a broken model."""
+        self.m = {h: self.factory() for h in self.horizons}
+        self.chal.clear()
+
     def on_score(self, s: int, h: int, abs_err: float) -> None:
         if self.adwin is None:
             return
