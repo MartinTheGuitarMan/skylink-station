@@ -77,3 +77,17 @@ with 9 models (Air VM), p99 step 13 ms (SNARIMAX forecasting steps).
 `config/edge.toml`. Next: base arm and backfill strategies (RQ1), a drift mechanism that fits
 increment models (ADWIN on volatility-normalised error, or exponentially forgetting least squares),
 then the agent layer. Nothing run in the night window; the launchd job and the Mini move wait for a yes.
+
+## Move to the Mac Mini (2026-10-14, 23:00)
+
+Approved by the owner. Mini (8 cores, 16 GB, 94 GB free) had no container runtime: installed
+colima, docker, docker-compose, uv, node with Homebrew (user level, no sudo). colima VM 4 CPU / 6 GB.
+`~/.docker/config.json` pointed at a missing Docker Desktop credential helper; fixed it (backup:
+`config.json.bak-skylink`) and added the compose plugin path. Repo copied with git bundle (no remote).
+`make up` works; 17 tests pass; five-stream smoke at 60x: stream hash identical to the Air
+(267cdade...), so the simulator is reproducible across machines. Mini load during that run:
+river 32 %, nodered 17 % of a core, p99 step 22 ms, no model crashes.
+Installed `~/Library/LaunchAgents/se.skylink.nightly.plist` (23:00 daily, niced, ends 06:00).
+Started the first run by hand at 23:09 (inside the window): `dev-s1`, seed 1, 7 days, 60x, all five
+streams, default models. Air stack stopped and its colima profile deleted.
+Open: the job only runs while `USER` is logged in on the Mini (it is, console session).
