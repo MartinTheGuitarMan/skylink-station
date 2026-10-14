@@ -1,15 +1,15 @@
 # Backlog (ranked; shown five at a time)
 
 Top five:
-1. **River models + drift detectors** (linear on lag features, HoltWinters, SNARIMAX, ARF; ADWIN). Small, in-repo. Next iteration.
-2. **Score script**: skill vs persistence per stream and horizon, block-bootstrap CIs, markdown + charts. Needed before any number can be claimed.
-3. **All five streams through the stack**, at 1x and 60x: first real CPU/RAM and latency numbers (C2).
-4. **Base arm and backfill strategies**: arrival order vs event-time order vs ignore-late, for RQ1.
-5. **Nightly runner** (`scripts/nightly.sh`, checkpointed, ends 06:00). Installing the launchd job is outside the repo: needs the human's yes.
+1. **Base arm and backfill strategies**: arrival order vs event-time order vs ignore-late (RQ1); prerequisite for alert triage.
+2. **Drift mechanism that fits increment models**: ADWIN on volatility-normalised error, or exponentially forgetting least squares (RQ2). Error-stream ADWIN with reset or challenger was harmful (journal, iteration 1).
+3. **Agent layer** per `docs/agent.md`: mcp-minions client, guardrails, call log, four local models (RQ3).
+4. **Solar models**: all lose to persistence; try the ratio to a clear-sky shape, night/day regimes.
+5. **Locked-seed verdict runs** (seeds 101-105, 7 days, all streams) once 1-4 are in; needs the night window and the Mini.
 
 Next:
-6. Static-model arm for RQ2 (train 2 days, freeze).
-7. Agent layer: mcp-minions client, JSON schemas, guardrails, call log (RQ3); try several local models.
+6. ARF regressor on a dedicated heavy config, to measure the cost/benefit break-even (RQ5).
+7. Score script charts (weekly report): skill vs horizon per stream, recovery curves after events.
 8. Downsampling task in InfluxDB so Grafana can show multi-day ranges.
 9. Persist the Node-RED buffer (file context) so a restart does not void a run.
 10. Move the stack to the Mac Mini (needs the human; the Air is the dev host for now).
