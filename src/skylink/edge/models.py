@@ -98,6 +98,26 @@ class SeasonalNaive:
         return out
 
 
+class SeasonalAnchor:
+    """Seasonal naive anchored to the present: y[s] + (y[s+h-P] - y[s-P]). Immune to level offsets."""
+    name = "seasonal_anchor"
+
+    def __init__(self, horizons, cfg, params):
+        self.horizons = horizons
+        self.period = int(cfg["day_s"])
+
+    def step(self, s, y, hist, x, fh):
+        base = hist.get(s - self.period)
+        if base is None:
+            return {}
+        out = {}
+        for h in self.horizons:
+            v = hist.get(s + h - self.period)
+            if v is not None:
+                out[h] = y + v - base
+        return out
+
+
 class Holt:
     """Double exponential smoothing: level + h * trend."""
     name = "holt"
@@ -243,6 +263,7 @@ def _arf(n):
 def build(name: str, horizons, cfg, params):
     if name == "persistence": return Persistence(horizons, cfg, params)
     if name == "seasonal_naive": return SeasonalNaive(horizons, cfg, params)
+    if name == "seasonal_anchor": return SeasonalAnchor(horizons, cfg, params)
     if name == "holt": return Holt(horizons, cfg, params)
     if name == "snarimax": return Snarimax(horizons, cfg, params)
     if name == "lin_sgd": return Direct(name, horizons, _lin_sgd)
