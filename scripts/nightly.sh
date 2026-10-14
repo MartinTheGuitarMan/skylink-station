@@ -14,6 +14,8 @@ hour=$(TZ=Europe/Stockholm date +%H)
 if [ "${FORCE:-0}" != 1 ] && [ "$hour" -ge 6 ] && [ "$hour" -lt 23 ]; then
   echo "outside the night window (23:00-06:00 Europe/Stockholm); FORCE=1 overrides" >&2; exit 0
 fi
+export PATH=/opt/homebrew/bin:/usr/local/bin:$PATH
+colima status >/dev/null 2>&1 || colima start --cpu 4 --memory 6 --disk 40 --vm-type vz >/dev/null 2>&1
 docker compose up -d >/dev/null 2>&1 || { echo "docker stack not available" >&2; exit 1; }
 
 while read -r run scen seed days speed edge; do

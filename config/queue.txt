@@ -1,2 +1,2 @@
 # <run-id> <scenario> <seed> <days> <speed> — dev seeds only until the final report
-# dev-s1 config/scenario-default.toml 1 7 60
+dev-s1 config/scenario-default.toml 1 7 60
