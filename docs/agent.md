@@ -1,6 +1,6 @@
 # Agent layer (mcp-minions): design
 
-Status: design only (iteration 1). Implementation is backlog item 7. This is written before any
+Status (2026-10-16): implemented and unit-tested with a fake transport; no live model call made yet. This is written before any
 agent call is made, so the evaluation cannot be fitted afterwards.
 
 ## Principle
@@ -52,3 +52,16 @@ time on the Air; the Mini decides what can run in parallel.
 
 ## Dependencies
 Triage needs the base arm (alerts that can be backfill artefacts), backlog item 4.
+
+## Implementation map
+- `src/skylink/agent/minions.py`: MCP stdio client (`MinionsClient`), `FakeTransport` for tests. Errors come back as codes, never raise.
+- `src/skylink/agent/jobs.py`: triage (classify), proposal and explanation (extract with a JSON schema), note (summarize; numbers must appear in the input), call log (JSONL).
+- `src/skylink/agent/alerts.py`: plain detector, truth-labelled cases from the simulator, arrival-order artefact cases, rules baseline.
+- `src/skylink/agent/linkmodel.py`: Python twin of the Node-RED outage chain (tested against the JS, transition by transition).
+- `src/skylink/agent/guard.py`: guardrails (action space, dwell, evidence, 50 % worse rejection, 20 % rollback).
+- `scripts/agent_eval.py`: triage evaluation. `scripts/agent_proposals.py`: closed-loop fixed vs rules vs agent bench.
+Dev-seed case set (seeds 1-3, 7 days): 2331 real events, 948 sensor faults, 216 backfill artefacts
+(1022 ambiguous and 26 unexplained alerts dropped). Rules baseline macro-F1 on a balanced set: 0.658, so C5a
+needs 0.81 or more. The rules fail on faults that look like events and on real events during replays.
+Caveat: artefact cases come from a Python re-implementation of Skylink's replay (same mechanism, own random
+shuffle), not from the live Node-RED run.

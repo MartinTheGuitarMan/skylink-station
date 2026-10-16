@@ -141,3 +141,14 @@ edge 3286-3600; ignore 1596-1760 (outage + replay never processed); arrival and 
 **Decision.** Queued `dev-s3` (seed 3, 7 days, 60x) for tonight: first multi-day run with the base arms.
 Pre-registered expectation stays H3: arrival order hurts most in the 10 min after link-up, sorted
 removes most of it, at the price of coverage while the replay is pending.
+
+## Iteration 3 (2026-10-16): agent layer built, not yet run live
+
+Built per `docs/agent.md` (see its implementation map): MCP client for mcp-minions, four jobs with
+in-code validation, labelled triage cases from dev seeds, guardrails, closed-loop switch bench.
+37 tests pass. The Python link model reproduces the Node-RED outage chain exactly (checked over three
+seeds). **Baseline fact:** the rules baseline scores macro-F1 0.658 on a balanced dev set (artefacts
+perfect by construction; 122 of 175 faults called real events; 27 of 216 real events called artefacts),
+so the C5a bar is 0.81. **Plumbing check of the closed loop with a scripted agent** (always proposes
+`hat`): MAE 11 % worse than fixed (CI 1.06-1.16) even behind the guardrails; 22 of 26 proposals
+rejected, 3 rollbacks. A bad agent really can hurt. No live model has been called: LM Studio's server is off.
