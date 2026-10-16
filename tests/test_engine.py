@@ -18,7 +18,7 @@ def errors(eng):
     out = {}
     for line in eng.buf:
         if line.startswith("error,"):
-            m = re.match(r"error,.*model=(\w+),horizon=(\d+) err=(\S+),abs_err=([^,\s]+)", line)
+            m = re.match(r"error,.*model=(\w+),.*horizon=(\d+) err=(\S+),abs_err=([^,\s]+)", line)
             out.setdefault((m[1], int(m[2])), []).append(float(m[4]))
     return out
 

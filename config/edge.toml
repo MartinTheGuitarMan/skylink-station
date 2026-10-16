@@ -4,6 +4,10 @@ day_s = 86400          # seasonal period P
 models = ["persistence", "seasonal_naive", "seasonal_anchor", "holt", "snarimax", "lin_lag", "lin_lag_static", "lin_lag_adwin", "lin_lag_reset", "hat"]
 # "arf" is the expensive one: add it for a dedicated run (config/edge-heavy.toml, later)
 
+[base]                 # arms that only see what crossed Skylink
+strategies = ["ignore", "arrival", "sorted"]
+models = ["persistence", "lin_lag", "holt"]
+
 [model.snarimax]
 stride = 10
 [model.lin_lag_static]

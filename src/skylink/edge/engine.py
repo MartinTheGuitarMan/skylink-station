@@ -1,6 +1,7 @@
 """Prequential evaluation engine for one run: aggregation, scoring, model stepping, writing."""
 from __future__ import annotations
 
+import bisect
 import math
 import threading
 import time
@@ -25,7 +26,8 @@ class StreamState:
         self.feat, self.fh = Features(), FeatHist(max(self.horizons) + 2)
         self.crashes: dict[str, int] = {}
         self.cost: dict[str, list] = {}  # model -> [seconds spent in step(), calls]
-        self.pending = {(m.name, h): deque() for m in self.models for h in self.horizons}
+        # bounded: with out-of-order input (late policy 'process') stale targets are never popped
+        self.pending = {(m.name, h): deque(maxlen=2 * h + 64) for m in self.models for h in self.horizons}
         self.cur: list | None = None  # [second, sum, sumsq, count]
         self.last_s = -1
         self.steps = 0
@@ -48,6 +50,25 @@ class Engine:
         self.base = {"n": 0, "late": 0, "max_lag_us": 0, "max_t": 0}
         self.hook = None  # optional callback(stream, model, h, s, y, yhat, y_persistence) for offline benches
         self.nonfinite = 0
+        self.late_policy = cfg.get("late_policy", "drop")  # drop | process (naive arrival order)
+        self.rt = True            # False while the caller feeds replayed (backfill) data: forecasts are hindcasts
+        self.link: list[tuple[int, int]] = []  # (event second, up) labels, for phase tags only
+        self.post_s = 600         # seconds after link-up counted as the "post" phase
+
+    def set_link(self, up: int, t_s: int) -> None:
+        with self.lock:
+            i = bisect.bisect_left(self.link, (t_s, up))
+            self.link.insert(i, (t_s, up))
+
+    def phase(self, s: int) -> str:
+        """outage / post (first 10 min after link-up) / normal, by event second. A label, never a model input."""
+        i = bisect.bisect_right(self.link, (s, 2)) - 1
+        if i < 0:
+            return "normal"
+        t, up = self.link[i]
+        if not up:
+            return "outage"
+        return "post" if s - t < self.post_s else "normal"
 
     def configure(self, run: str, epoch_us: int) -> None:
         with self.lock:
@@ -57,6 +78,7 @@ class Engine:
             self.base = {"n": 0, "late": 0, "max_lag_us": 0, "max_t": 0}
             self.max_event_us = 0
             self.step_ms.clear()
+            self.link = []
 
     # ---- ingest ----------------------------------------------------------------------
     def ingest(self, stream: str, t_us: list[int], values: list[float]) -> None:
@@ -77,7 +99,7 @@ class Engine:
                     continue
                 if st.cur is not None:
                     self._close(st)
-                if s <= st.last_s:
+                if s <= st.last_s and self.late_policy == "drop":
                     st.late_dropped += c
                     st.cur = None
                     continue
@@ -114,12 +136,13 @@ class Engine:
                 while q and q[0][0] < s:
                     q.popleft()
                 if q and q[0][0] == s:
-                    _, yhat = q.popleft()
+                    _, yhat, rt = q.popleft()
                     if not math.isfinite(yhat):  # a diverged model must not poison the store: score it as persistence
                         self.nonfinite += 1
                         yhat = st.hist.get(s - h) if st.hist.get(s - h) is not None else y
                     ts = self.epoch_us + s * 1_000_000
-                    tags = f"run={run},arm={arm},stream={st.name},model={m.name},horizon={h}"
+                    tags = (f"run={run},arm={arm},stream={st.name},model={m.name},rt={int(rt)},"
+                            f"phase={self.phase(s)},horizon={h}")
                     if self.hook:
                         self.hook(st.name, m.name, h, s, y, yhat, st.hist.get(s - h))
                     self.buf.append(f"forecast,{tags} yhat={yhat} {ts}")
@@ -149,7 +172,7 @@ class Engine:
             c[0] += time.perf_counter() - t0
             c[1] += 1
             for h, yhat in fc.items():
-                st.pending[(m.name, h)].append((s + h, yhat))
+                st.pending[(m.name, h)].append((s + h, yhat, self.rt))
             for ds, dh, kind in getattr(m, "events", ()):
                 self.buf.append(f"drift,run={run},arm={arm},stream={st.name},model={m.name},horizon={dh},kind={kind} "
                                 f"n=1i {self.epoch_us + ds * 1_000_000}")

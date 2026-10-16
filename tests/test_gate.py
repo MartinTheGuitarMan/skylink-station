@@ -50,3 +50,11 @@ def test_resume_reproduces_schedule():
     t = lambda tr: [x for x in tr]
     cut = [x for x in full["trace"] if float(x.split("@")[1]) > 1000]
     assert t(tail["trace"]) == cut
+
+
+def test_control_messages_for_base_arms():
+    r = gate()
+    c = r["ctrl"]
+    assert c["link"] == len(r["trace"])                  # one label per transition
+    assert c["bf_start"] > 2 and sum(c["bf_n"]) == c["bf_chunks"]   # announced chunk count is exact
+    assert c["first_is_ctrl"]                            # the notice precedes the first live batch

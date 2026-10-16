@@ -13,7 +13,8 @@ const epoch = 1767225600000000;
 cfgFn({ payload: { run: 'r', seed: input.seed, epoch_us: epoch, resume_s: input.resume_s || 0, ...input.cfg } }, flow, ENV, {});
 const start = input.resume_s || 0;
 const trace = [];            // link transitions (event seconds)
-const backfillOrder = [];    // first timestamp of each backfill chunk, in emission order
+const backfillOrder = [];
+const ctrl = { link: 0, bf_start: 0, bf_n: [], bf_chunks: 0, first_is_ctrl: true };    // first timestamp of each backfill chunk, in emission order
 let liveOut = 0, bfOut = 0, emitted = 0;
 for (let s = start; s < start + input.seconds; s++) {
     const t = [], v = [[]];
@@ -24,7 +25,13 @@ for (let s = start; s < start + input.seconds; s++) {
         if (typeof m.payload === 'string') trace.push(m.payload.split(' ')[1].split(',')[0] + '@' + (Number(m.payload.split(' ').pop()) - epoch) / 1e6);
         else liveOut += m.payload.t.length;
     }
+    for (const m of O[2]) {
+        const c = m.payload.ctrl;
+        if (c === 'link') ctrl.link++;
+        if (c === 'bf_start') { ctrl.bf_start++; ctrl.bf_n.push(m.payload.n); if (O[2].indexOf(m) > O[2].findIndex(x => !x.payload.ctrl)) ctrl.first_is_ctrl = false; }
+    }
+    ctrl.bf_chunks += O[3].length;
     for (const m of O[3]) { bfOut += m.payload.t.length; backfillOrder.push(m.payload.t[0]); }
 }
 const st = flow.get('st');
-console.log(JSON.stringify({ trace, liveOut, bfOut, emitted, n: st.n, bufPts: st.bufPts, up: st.up, backfillOrder }));
+console.log(JSON.stringify({ trace, liveOut, bfOut, emitted, n: st.n, bufPts: st.bufPts, up: st.up, backfillOrder, ctrl }));

@@ -28,12 +28,12 @@ actual = f'''from(bucket: "raw") |> {RANGE}
   |> map(fn: (r) => ({{_time: r._time, _value: r._value, model: "actual"}}))
   |> group(columns: ["model"])'''
 fcst = f'''from(bucket: "forecasts") |> {RANGE}
-  |> filter(fn: (r) => r._measurement == "forecast" and r.run == "${{run}}" and r.stream == "${{stream}}" and r.horizon == "${{horizon}}" and r.arm =~ /^${{arm:regex}}$/ and r.model =~ /^${{model:regex}}$/)
+  |> filter(fn: (r) => r._measurement == "forecast" and r.run == "${{run}}" and r.stream == "${{stream}}" and (not exists r.rt or r.rt == "1") and r.horizon == "${{horizon}}" and r.arm =~ /^${{arm:regex}}$/ and r.model =~ /^${{model:regex}}$/)
   |> aggregateWindow(every: {WIN}, fn: mean, createEmpty: false)
   |> map(fn: (r) => ({{_time: r._time, _value: r._value, model: r.arm + "/" + r.model}}))
   |> group(columns: ["model"])'''
 mae = f'''from(bucket: "forecasts") |> {RANGE}
-  |> filter(fn: (r) => r._measurement == "error" and r._field == "abs_err" and r.run == "${{run}}" and r.stream == "${{stream}}" and r.horizon == "${{horizon}}" and r.arm =~ /^${{arm:regex}}$/ and r.model =~ /^${{model:regex}}$/)
+  |> filter(fn: (r) => r._measurement == "error" and r._field == "abs_err" and r.run == "${{run}}" and r.stream == "${{stream}}" and (not exists r.rt or r.rt == "1") and r.horizon == "${{horizon}}" and r.arm =~ /^${{arm:regex}}$/ and r.model =~ /^${{model:regex}}$/)
   |> aggregateWindow(every: if int(v: v.windowPeriod) > 60000000000 then v.windowPeriod else 1m, fn: mean, createEmpty: false)
   |> map(fn: (r) => ({{_time: r._time, _value: r._value, model: r.arm + "/" + r.model}}))
   |> group(columns: ["model"])'''
