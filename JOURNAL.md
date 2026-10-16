@@ -105,3 +105,15 @@ River model (SNARIMAX is +2 % at best); vibration +18-20 %; hat loses on pressur
 nobody is logged in, so colima is down and a per-user launchd job cannot run. In-memory counters
 (Node-RED link state, river stats) were lost; InfluxDB data survived. I restarted colima and the stack by
 hand. Needs a decision: auto-login for `USER`, or accept manual start after reboots.
+
+## Second night, dev-s2 (2026-10-15 23:00); no-login reboot test passed
+
+`dev-s2` (seed 2, 7 days, 60x) started 23:00:06 by the system daemon and finished (301 515 posts, hash
+f421e217...). Scores (`reports/dev-s2-scores.md`) agree with dev-s1 within a few points everywhere, so
+the dev-seed findings are not seed noise: lin_lag temp +5/+15/+21/+37 %, wind +6/+21/+25/+24 %,
+vibration +16-21 %, pressure about 0, solar -17 to -24 %; online beats static on temp at long horizons
+(+37 vs +26 % at 3600 s); reset and ADWIN-challenger variants lose heavily at h >= 60 on both seeds;
+HAT collapses on solar (-6x to -20x); seasonal anchor is worse than persistence below 1 h.
+The Mini rebooted again around 16:05 on 2026-10-16 with nobody logged in (uptime 5 h at 21:08); colima
+and all four containers came back on their own. That is the intended behaviour of
+`se.skylink.colima`. No data loss. Queue is empty.
