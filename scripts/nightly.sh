@@ -29,3 +29,18 @@ while read -r run scen seed days speed edge; do
       --speed "$speed" --until "$END" $resume
   curl -s -XPOST localhost:8000/flush >/dev/null
 done < config/queue.txt
+
+# ---- agent evaluations (local models through mcp-minions), after the simulation queue --------------
+# config/agent-queue.txt lines: <id>|<per-class cases>|<name=model-spec,...>   (ollama:<model> for Ollama)
+if [ -f config/agent-queue.txt ] && command -v ollama >/dev/null; then
+  curl -s -m 2 localhost:11434/api/version >/dev/null || { (nohup nice ollama serve >> runs/ollama.log 2>&1 &); sleep 8; }
+  while IFS='|' read -r id per models; do
+    case "$id" in ""|\#*) continue;; esac
+    [ -f "runs/agent/$id/report.md" ] && continue
+    now=$(TZ=Europe/Stockholm date +%H%M)
+    if [ "$now" -ge "${END/:/}" ] && [ "$now" -lt 2300 ]; then echo "window over (agent)"; break; fi
+    echo "$(date '+%F %T') agent eval $id ($models, $per per class)"
+    [ -f runs/agent/cases.json ] || nice uv run --extra agent python scripts/agent_eval.py build --seeds 1,2,3 --days 7
+    nice uv run --extra agent python scripts/agent_eval.py run --models "$models" --per-class "$per" --id "$id" --timeout 300
+  done < config/agent-queue.txt
+fi

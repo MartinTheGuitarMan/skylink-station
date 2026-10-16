@@ -1,0 +1,2 @@
+# <id>|<per-class cases>|<name=model-spec,...>   dev cases only; see docs/agent.md
+mini-t1|100|g1b=ollama:gemma3:1b,g4b=ollama:gemma3:4b,q4b=ollama:qwen3:4b
