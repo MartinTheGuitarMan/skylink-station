@@ -152,3 +152,22 @@ perfect by construction; 122 of 175 faults called real events; 27 of 216 real ev
 so the C5a bar is 0.81. **Plumbing check of the closed loop with a scripted agent** (always proposes
 `hat`): MAE 11 % worse than fixed (CI 1.06-1.16) even behind the guardrails; 22 of 26 proposals
 rejected, 3 rollbacks. A bad agent really can hurt. No live model has been called: LM Studio's server is off.
+
+## Local models and Jev wired in (2026-10-16 evening)
+
+Ollama installed on the Mini (Homebrew, with approval): models gemma3:1b, gemma3:4b, qwen3:4b; the
+server is started by the nightly job if it is not running (optional daemon `ops/se.skylink.ollama.plist`
+needs the sudo installer). mcp-minions cloned to the Mini. Air: LM Studio server started for the run only.
+Jev (TypeSafe's System One decision model, jev-style 0.4.0, 0.8B v3, MLX) runs on the Air at port 8765 and
+is used through mcp-minions' `systemone` backend (`config/roster-jev.json`).
+**Live smoke, 18 triage cases each:** gemma3:1b collapses to one class (F1 0.17); gemma-4-e4b F1 0.57;
+Jev 0.8B 0.69 (all within noise at n=18, rules 0.648).
+**Jev 0.8B on the full balanced dev set (648 cases):** macro-F1 0.587 (rules 0.658), accuracy 0.619, 0 invalid,
+p50 0.16 s. It finds 58 of 175 faults. A rules-first hybrid (rules decide artefacts and flat lines, Jev
+decides the rest) gets 0.643. Its confidence is **not** calibrated on this task: accuracy among the 20 %
+most confident answers is 0.37, overall 0.56. So the shortcut-by-confidence mechanism has nothing to
+work with here, zero-shot. A decision model needs domain data (or a better description of the numbers).
+**Night queue 2026-10-16/17:** Mini: `dev-s3` (7 days with base arms), then `mini-t1` (gemma3 1b/4b, qwen3 4b,
+100 cases per class). Air (started by hand under caffeinate, waits for 23:00): gemma-3-1b, gemma-4-e4b,
+Jev 0.8B, then gemma-4-12b, then gpt-oss-20b, same cases (seed 7 balanced). The Air must stay awake and
+plugged in; its job is not installed as a launchd agent.
