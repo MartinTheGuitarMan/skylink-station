@@ -1,0 +1,11 @@
+{
+  "models": {
+    "jev": {"backend": "systemone", "kind": "decision", "base_url": "http://127.0.0.1:8765/v1", "model": "jev-style-0.8b-decision-v3"},
+    "unused": {"backend": "ollama", "model": "unused", "kind": "fast"}
+  },
+  "routes": {
+    "classify": {"fast": ["jev"]},
+    "extract": {"fast": ["unused"]},
+    "summarize": {"fast": ["unused"]}
+  }
+}

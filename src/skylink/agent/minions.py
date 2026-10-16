@@ -92,10 +92,10 @@ class MinionsClient:
             return Reply(False, None, "TRANSPORT", (time.perf_counter() - t0) * 1000, f"{type(e).__name__}: {e}")
         ms = (time.perf_counter() - t0) * 1000
         text = "".join(getattr(c, "text", "") for c in res.content)
-        if res.isError:
+        if getattr(res, "is_error", getattr(res, "isError", False)):
             m = re.search(r"MINION_[A-Z_]+", text)
             return Reply(False, None, m.group(0) if m else "ERROR", ms, text)
-        data = getattr(res, "structuredContent", None)
+        data = getattr(res, "structured_content", None) or getattr(res, "structuredContent", None)
         if not data:
             try:
                 data = json.loads(text)

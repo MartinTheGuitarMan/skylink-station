@@ -62,8 +62,12 @@ def run(a):
     preds = {}
     for spec in a.models.split(","):
         name, model = spec.split("=", 1)
-        backend, model = ("ollama", model[7:]) if model.startswith("ollama:") else ("lmstudio", model)
-        client = MinionsClient(model, backend=backend, name=name, timeout_s=a.timeout)
+        if model.startswith("roster:"):      # e.g. jev=roster:config/roster-jev.json (decision model, classify only)
+            client = MinionsClient(name, name=name, timeout_s=a.timeout, roster=str(Path(model[7:]).resolve()),
+                                   extra_env={"MINION_META": "1"})
+        else:
+            backend, model = ("ollama", model[7:]) if model.startswith("ollama:") else ("lmstudio", model)
+            client = MinionsClient(model, backend=backend, name=name, timeout_s=a.timeout)
         ag, lats, bad, pred = Agent(client, CallLog(d / f"{name}.jsonl")), [], 0, []
         t0 = time.time()
         for i, c in enumerate(cases):
