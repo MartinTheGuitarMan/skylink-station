@@ -42,11 +42,17 @@ nodes = [
     {"id": TAB, "type": "tab", "label": "Skylink edge", "disabled": False, "info": "Ingest, Skylink outage model, store-and-forward, backfill."},
     http_in("in_ingest", "post", "/ingest", ["gate"], 100),
     fn("gate", "skylink gate", src("gate"), 5,
-       [["req_edge"], ["to_lp"], ["req_base"], ["delay_influx"], ["delay_base"]], 300, 100, True),
+       [["req_edge"], ["to_lp"], [], ["delay_influx"], ["hold_base"]], 300, 100, True),
     request("req_edge", "edge tap -> river", "", 40),
+    fn("base_live", "ordered live msgs to base arms", src("base_live"), 2, [["req_base_live"], ["resp_ingest"]], 500, 40),
+    request("req_base_live", "base live (ordered)", "", 40, 780),
     http_out("resp_ingest", 40, "202"),
     request("req_base", "after Skylink -> river base", "", 180, 700),
     delay("delay_influx", "backfill rate limit (influx)", 240, ["to_lp"]),
+    {"id": "hold_base", "type": "delay", "z": TAB, "name": "let the replay notice land first", "pauseType": "delay",
+     "timeout": "300", "timeoutUnits": "milliseconds", "rate": "1", "nbRateUnits": "1", "rateUnits": "second",
+     "randomFirst": "1", "randomLast": "5", "randomUnits": "seconds", "drop": False, "allowrate": False,
+     "outputs": 1, "x": 300, "y": 300, "wires": [["delay_base"]]},
     delay("delay_base", "backfill rate limit (base)", 300, ["req_base"]),
     fn("to_lp", "build influx write", src("to_lp"), 1, [["req_influx"]], 500, 380, True),
     request("req_influx", "influx raw", "", 380, 740),
@@ -59,7 +65,8 @@ nodes = [
     http_out("resp_state", 580),
 ]
 by = {n["id"]: n for n in nodes}
-by["req_edge"]["wires"] = [["resp_ingest"]]
+by["req_edge"]["wires"] = [["base_live"]]
+by["req_base_live"]["wires"] = [["resp_ingest"]]
 by["req_influx"]["wires"] = [["check_write"]]
 by["req_influx"]["name"] = "influx raw (url from msg)"
 (root / "flows.json").write_text(json.dumps(nodes, indent=1) + "\n")

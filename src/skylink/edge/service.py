@@ -17,6 +17,10 @@ from .basearm import BaseArm
 from .engine import Engine
 
 
+class BaseMsgs(BaseModel):
+    msgs: list["Batch"]
+
+
 class Cfg(BaseModel):
     run: str
     epoch_us: int
@@ -37,10 +41,14 @@ class Batch(BaseModel):
     n: int | None = None
 
 
+BaseMsgs.model_rebuild()
+
+
 def build_app(cfg_path: str | None = None, influx: Influx | None = None):
     cfg = tomllib.load(open(cfg_path or os.environ.get("EDGE_CONFIG", "config/edge.toml"), "rb"))
     eng = Engine(cfg, influx)
     bases = [BaseArm(cfg, influx, s) for s in cfg.get("base", {}).get("strategies", [])]
+    base_lock = threading.Lock()
     app = FastAPI(title="skylink-edge")
 
     @app.post("/config")
@@ -57,16 +65,20 @@ def build_app(cfg_path: str | None = None, influx: Influx | None = None):
         return {"n": len(b.t)}
 
     @app.post("/base/ingest")
-    def base(b: Batch):
-        if b.run != eng.run:
-            return {"n": 0}
-        if b.ctrl == "link":  # label for phases; the edge arm is scored by phase too
-            eng.set_link(b.up, (b.t_us - eng.epoch_us) // 1_000_000)
-        if b.t:
-            eng.ingest_base(b.t)
-        for arm in bases:
-            arm.on_message(b.model_dump())
-        return {"n": len(b.t)}
+    def base(m: BaseMsgs):
+        n = 0
+        with base_lock:  # one ordered stream of messages at a time
+            for b in m.msgs:
+                if b.run != eng.run:
+                    continue
+                if b.ctrl == "link":  # label for phases; the edge arm is scored by phase too
+                    eng.set_link(b.up, (b.t_us - eng.epoch_us) // 1_000_000)
+                if b.t:
+                    eng.ingest_base(b.t)
+                    n += len(b.t)
+                for arm in bases:
+                    arm.on_message(b.model_dump())
+        return {"n": n}
 
     @app.post("/flush")
     def flush():

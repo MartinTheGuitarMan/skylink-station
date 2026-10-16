@@ -25,10 +25,13 @@ for (let s = start; s < start + input.seconds; s++) {
         if (typeof m.payload === 'string') trace.push(m.payload.split(' ')[1].split(',')[0] + '@' + (Number(m.payload.split(' ').pop()) - epoch) / 1e6);
         else liveOut += m.payload.t.length;
     }
-    for (const m of O[2]) {
-        const c = m.payload.ctrl;
-        if (c === 'link') ctrl.link++;
-        if (c === 'bf_start') { ctrl.bf_start++; ctrl.bf_n.push(m.payload.n); if (O[2].indexOf(m) > O[2].findIndex(x => !x.payload.ctrl)) ctrl.first_is_ctrl = false; }
+    const bl = O[0][0].baseMsgs;
+    for (const m of bl) {
+        if (m.ctrl === 'link') ctrl.link++;
+        if (m.ctrl === 'bf_start') {
+            ctrl.bf_start++; ctrl.bf_n.push(m.n);
+            if (bl.indexOf(m) > bl.findIndex(x => !x.ctrl)) ctrl.first_is_ctrl = false;
+        }
     }
     ctrl.bf_chunks += O[3].length;
     for (const m of O[3]) { bfOut += m.payload.t.length; backfillOrder.push(m.payload.t[0]); }

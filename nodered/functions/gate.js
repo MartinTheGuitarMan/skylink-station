@@ -1,15 +1,18 @@
 // The Skylink gate. One message = one sensor batch {run, stream, fields, t[us], v[[...]]}.
-// Outputs: 0 edge tap (original msg, carries the HTTP response), 1 influx live, 2 base live,
-//          3 influx backfill (rate limited), 4 base backfill (rate limited).
+// Outputs: 0 edge tap (original msg, carries the HTTP response; its `baseMsgs` are the ordered live
+//          messages for the base arms, delivered after the edge call so they keep their order),
+//          1 influx live, 2 unused, 3 influx backfill (rate limited), 4 base backfill (rate limited).
 const p = msg.payload;
 const st = flow.get('st');
-const base = (b) => ({ payload: b, method: 'POST', url: env.get('EDGE_URL') + '/base/ingest' });
+const base = (b) => ({ payload: { msgs: [b] }, method: 'POST', url: env.get('EDGE_URL') + '/base/ingest' });
+const BL = [];   // ordered base-live messages
 msg.method = 'POST'; msg.url = env.get('EDGE_URL') + '/edge/ingest';   // http request nodes take url from msg
 const O = [[msg], [], [], [], []];
+msg.baseMsgs = BL;
 const npts = p.t.length;
 if (!st || st.run !== p.run) {            // no link model configured: transparent pass-through
     O[1].push({ payload: p });
-    O[2].push(base(p));
+    BL.push(p);
     return O;
 }
 st.n.in += npts;
@@ -26,11 +29,11 @@ while (st.clock < endS) {
     if (st.up) {
         if (u < 1 / cfg.mean_up_s) {
             st.up = false; st.n.outages++; O[1].push(link(false, ts));
-            O[2].push(base({ run: st.run, ctrl: 'link', up: 0, t_us: ts }));      // labelling channel for the scorer
+            BL.push({ run: st.run, ctrl: 'link', up: 0, t_us: ts });      // labelling channel for the scorer
         }
     } else if (u < 1 / cfg.mean_down_s) {
         st.up = true; backfill = true; O[1].push(link(true, ts));
-        O[2].push(base({ run: st.run, ctrl: 'link', up: 1, t_us: ts }));
+        BL.push({ run: st.run, ctrl: 'link', up: 1, t_us: ts });
     }
 }
 if (!st.up) {
@@ -58,7 +61,7 @@ if (backfill && st.up && st.buffer.length) {
         out.push(...w);
     }
     // link-layer notice that a replay of `n` chunks follows; sent before the first live batch after reconnect
-    O[2].push(base({ run: st.run, ctrl: 'bf_start', bf_id: st.clock, n: out.length }));
+    BL.push({ run: st.run, ctrl: 'bf_start', bf_id: st.clock, n: out.length });
     for (const c of out) {
         c.bf = true; c.bf_id = st.clock; c.bf_n = out.length;
         O[3].push({ payload: c }); O[4].push(base(c)); st.n.backfilled += c.t.length;
@@ -66,7 +69,7 @@ if (backfill && st.up && st.buffer.length) {
     st.buffer = []; st.bufPts = 0;
 }
 if (st.up) {
-    O[1].push({ payload: p }); O[2].push(base(p));
+    O[1].push({ payload: p }); BL.push(p);
     st.n.live += npts;
 }
 return O;
