@@ -117,3 +117,27 @@ HAT collapses on solar (-6x to -20x); seasonal anchor is worse than persistence 
 The Mini rebooted again around 16:05 on 2026-10-16 with nobody logged in (uptime 5 h at 21:08); colima
 and all four containers came back on their own. That is the intended behaviour of
 `se.skylink.colima`. No data loss. Queue is empty.
+
+## Iteration 2 (2026-10-16): base arms and backfill strategies (RQ1)
+
+**Did.** The base side is now three River arms that only see what crossed Skylink (models:
+persistence, lin_lag, holt; the edge arm keeps its 10): `base-ignore` (late data dropped),
+`base-arrival` (everything in arrival order, even when event time goes backwards), `base-sorted`
+(on a replay notice it holds live data until all backfill chunks arrived, then processes everything in
+event-time order). Forecasts made from replayed data are hindcasts, tagged `rt=0`; only `rt=1` counts as
+real-time. Every error line also carries a `phase` tag (outage / post = first 10 min after link-up /
+normal) from link labels that never reach a model. `skylink.analysis --base` prints MAE ratio and
+coverage (real-time forecasts relative to the edge) per phase.
+**Bugs found while wiring it up.**
+1. Node-RED sent link labels, the replay notice and the live batch to the river service as separate,
+   concurrent HTTP requests, so they could overtake each other (the sorted arm then lost data). Live
+   base messages now travel in one ordered request after the edge call; backfill chunks wait 300 ms
+   behind it. The base endpoint has a lock.
+2. A new outage can start before the previous replay finished; the sorted arm overwrote its hold and
+   dropped data. Holds now accumulate (unit-tested).
+**Unit tests:** 24 pass (gate notices, three strategies on a scripted outage, overlapping replays).
+**Mini smoke (1 simulated hour, 5 streams, 7 outages, not a result):** steps processed per stream
+edge 3286-3600; ignore 1596-1760 (outage + replay never processed); arrival and sorted = all.
+**Decision.** Queued `dev-s3` (seed 3, 7 days, 60x) for tonight: first multi-day run with the base arms.
+Pre-registered expectation stays H3: arrival order hurts most in the 10 min after link-up, sorted
+removes most of it, at the price of coverage while the replay is pending.
