@@ -39,11 +39,13 @@ class BaseArm:
             return
         if ctrl == "bf_start":
             if self.strategy == "sorted":
-                self.hold = {"id": b["bf_id"], "n": int(b["n"]), "got": 0, "batches": []}
+                if self.hold is None:
+                    self.hold = {"n": 0, "got": 0, "batches": []}
+                self.hold["n"] += int(b["n"])   # a new outage may start before the last replay finished
             return
         if self.strategy == "sorted" and self.hold is not None:
             self.hold["batches"].append(b)
-            if b.get("bf") and b.get("bf_id") == self.hold["id"]:
+            if b.get("bf"):
                 self.hold["got"] += 1
                 if self.hold["got"] >= self.hold["n"]:
                     self._replay()

@@ -62,3 +62,19 @@ def test_phase_labels_follow_link_events():
     e = a.engine
     assert e.phase(50) == "normal" and e.phase(150) == "outage"
     assert e.phase(205) == "post" and e.phase(900) == "normal"
+
+
+def test_sorted_survives_a_second_outage_during_replay():
+    arm = BaseArm(CFG, None, "sorted")
+    arm.configure("r", 0)
+    for m in [batch(s, s + 10) for s in range(0, 50, 10)]:
+        arm.on_message(m)
+    arm.on_message({"run": "r", "ctrl": "bf_start", "bf_id": 100, "n": 2})
+    arm.on_message(batch(100, 110))
+    arm.on_message(batch(70, 100, bf=True, bf_id=100, bf_n=2))        # first replay chunk
+    arm.on_message({"run": "r", "ctrl": "bf_start", "bf_id": 200, "n": 1})   # second outage ends meanwhile
+    arm.on_message(batch(50, 70, bf=True, bf_id=100, bf_n=2))
+    assert arm.hold is not None                                       # still waiting for the third chunk
+    arm.on_message(batch(110, 200, bf=True, bf_id=200, bf_n=1))
+    arm.flush()
+    assert arm.hold is None and arm.engine.streams["temp"].steps >= 195
