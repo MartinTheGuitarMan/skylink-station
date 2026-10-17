@@ -78,4 +78,4 @@ After every outage cycle, points stored in the InfluxDB raw bucket = points the 
 
 ## Amendments
 
-_None yet._
+- 2026-10-17: added a deliverable, `docs/recipe.md` (evidence-tagged recipe for where River and language models create value at the edge), requested by the owner. It is not a criterion and changes no threshold, verdict rule or hypothesis. It is part of the final report.

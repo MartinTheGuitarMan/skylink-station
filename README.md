@@ -3,7 +3,7 @@
 Experiment: can local AI agents plus River (online ML) give valuable forecasts on five
 high-frequency streams from an isolated research station whose uplink ("Skylink") drops out
 unpredictably? Read `docs/success-criteria.md` first: the criteria and hypotheses were written
-before anything ran. Progress: `JOURNAL.md`, `BACKLOG.md`, `reports/`.
+before anything ran. Progress: `JOURNAL.md`, `BACKLOG.md`, `reports/`. A deliverable alongside the answers to the research questions: `docs/recipe.md`, an evidence-tagged recipe for where River and language models create value at the edge.
 
 ```
 simulator (seeded, replayable, time-compressed)

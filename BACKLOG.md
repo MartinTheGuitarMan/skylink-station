@@ -8,6 +8,7 @@ Top five:
 5. **Locked-seed verdict runs** (seeds 101-105, 7 days, all streams) once 1-4 are in; needs the night window and the Mini.
 
 Next:
+0. Keep `docs/recipe.md` current after each night's results (deliverable; upgrade tags to `locked` only after the verdict runs).
 6. ARF regressor on a dedicated heavy config, to measure the cost/benefit break-even (RQ5).
 7. Score script charts (weekly report): skill vs horizon per stream, recovery curves after events.
 8. Downsampling task in InfluxDB so Grafana can show multi-day ranges.
