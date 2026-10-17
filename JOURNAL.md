@@ -90,7 +90,7 @@ river 32 %, nodered 17 % of a core, p99 step 22 ms, no model crashes.
 Installed `~/Library/LaunchAgents/se.skylink.nightly.plist` (23:00 daily, niced, ends 06:00).
 Started the first run by hand at 23:09 (inside the window): `dev-s1`, seed 1, 7 days, 60x, all five
 streams, default models. Air stack stopped and its colima profile deleted.
-Open: the job only runs while `USER` is logged in on the Mini (it is, console session).
+Open: the job only runs while the main user is logged in on the Mini (it is, console session).
 
 ## First night, dev-s1 (2026-10-14 23:09 to 2026-10-15 01:57)
 
@@ -104,7 +104,7 @@ River model (SNARIMAX is +2 % at best); vibration +18-20 %; hat loses on pressur
 **Incident:** the Mini rebooted before 21:05 on 2026-10-15 (uptime 3 min when I looked). After a reboot
 nobody is logged in, so colima is down and a per-user launchd job cannot run. In-memory counters
 (Node-RED link state, river stats) were lost; InfluxDB data survived. I restarted colima and the stack by
-hand. Needs a decision: auto-login for `USER`, or accept manual start after reboots.
+hand. Needs a decision: auto-login for the main user, or accept manual start after reboots.
 
 ## Second night, dev-s2 (2026-10-15 23:00); no-login reboot test passed
 

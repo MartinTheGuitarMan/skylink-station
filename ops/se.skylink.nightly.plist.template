@@ -2,13 +2,13 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
  <key>Label</key><string>se.skylink.nightly</string>
- <key>UserName</key><string>USER</string>
- <key>ProgramArguments</key><array><string>/bin/bash</string><string>/Users/USER/Code/skylink-station/scripts/nightly.sh</string></array>
+ <key>UserName</key><string>__USER__</string>
+ <key>ProgramArguments</key><array><string>/bin/bash</string><string>__REPO__/scripts/nightly.sh</string></array>
  <key>StartCalendarInterval</key><dict><key>Hour</key><integer>23</integer><key>Minute</key><integer>0</integer></dict>
  <key>EnvironmentVariables</key><dict>
-  <key>HOME</key><string>/Users/USER</string>
+  <key>HOME</key><string>/Users/__USER__</string>
   <key>PATH</key><string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
  </dict>
- <key>StandardOutPath</key><string>/Users/USER/Code/skylink-station/runs/nightly.log</string>
- <key>StandardErrorPath</key><string>/Users/USER/Code/skylink-station/runs/nightly.log</string>
+ <key>StandardOutPath</key><string>__REPO__/runs/nightly.log</string>
+ <key>StandardErrorPath</key><string>__REPO__/runs/nightly.log</string>
 </dict></plist>
