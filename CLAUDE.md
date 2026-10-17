@@ -18,3 +18,4 @@ An experiment run by an autonomous lead engineer. The brief is in `docs/success-
 - Lists shown to the human: five items at a time, ranked.
 - Do not push; there is no remote.
 - `docs/recipe.md` is a deliverable: after every night's results update it, keep the evidence tags honest (`dev`, `locked`, `untested`), and put its final form in the final report.
+- Stop rule (see Amendments in docs/success-criteria.md): done after the locked-seed verdict is written up AND three consecutive night cycles give no new finding. Until then, keep going; log each night as `finding` or `no finding` in the journal.

@@ -79,3 +79,4 @@ After every outage cycle, points stored in the InfluxDB raw bucket = points the 
 ## Amendments
 
 - 2026-10-17: added a deliverable, `docs/recipe.md` (evidence-tagged recipe for where River and language models create value at the edge), requested by the owner. It is not a criterion and changes no threshold, verdict rule or hypothesis. It is part of the final report.
+- 2026-10-17: stop rule, proposed by the owner and made precise. A *finding* is anything that changes a claim in `docs/recipe.md`, an evidence tag, or the status of a hypothesis. The experiment and the recipe are finished when (a) the locked-seed verdict runs (seeds 101-105, 7 days, all five streams) have been done once and written up, and (b) three consecutive night cycles after that produce no finding. Until (a), "no new findings on dev seeds" does not end the experiment, because dev findings are not verdicts. No threshold, verdict rule or hypothesis is changed.
