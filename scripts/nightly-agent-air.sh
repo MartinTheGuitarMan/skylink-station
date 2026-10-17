@@ -18,7 +18,7 @@ run() {  # id per-class specs
   free=$(memory_pressure | awk '/free percentage/ {gsub("%","",$NF); print $NF}')
   if [ "${free:-0}" -lt "${MIN_FREE_PCT:-45}" ]; then echo "$(date '+%F %T') skip $1: only ${free}% memory free (need ${MIN_FREE_PCT:-45}%)"; return; fi
   echo "$(date '+%F %T') $1 (memory free ${free}%)"
-  nice uv run --extra agent python scripts/agent_eval.py run --per-class "$2" --models "$3" --id "$1" --timeout 300
+  nice uv run --extra agent python scripts/agent_eval.py run --per-class "$2" --models "$3" --id "$1" --timeout 300 --until 06:00
 }
 run air-t1 100 "g1b=google/gemma-3-1b,e4b=google/gemma-4-e4b,j08=roster:config/roster-jev.json"
 run air-t2 100 "g12b=google/gemma-4-12b"

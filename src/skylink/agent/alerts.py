@@ -247,3 +247,15 @@ def balanced(cases: list[Case], per_class: int, seed: int = 0) -> list[Case]:
         pick = rng.permutation(len(pool))[:per_class]
         out += [pool[i] for i in sorted(pick)]
     return out
+
+
+def fewshot_hint(base_hint: str, pool: list[Case], exclude_ids: set, per_class: int = 2, seed: int = 11) -> str:
+    """Triage hint with worked examples drawn from dev cases that are NOT in the evaluation set."""
+    rng = np.random.default_rng(seed)
+    parts = [base_hint, "Worked examples (numbers and the correct label):"]
+    for lab in LABELS:
+        cands = [c for c in pool if c.label == lab and c.id not in exclude_ids]
+        for i in rng.permutation(len(cands))[:per_class]:
+            c = cands[i]
+            parts.append("---\n" + c.text().replace("\n", "; ") + f"\n=> {lab}")
+    return "\n".join(parts)

@@ -68,8 +68,8 @@ class Agent:
                        value=o.value, why=o.why, error=o.reply.error, latency_ms=round(o.reply.latency_ms, 1), **(extra or {}))
         return o
 
-    def triage(self, text: str) -> Outcome:
-        r = self.t.call("classify", {"text": text, "labels": LABELS, "hint": TRIAGE_HINT, "descriptions": DESCRIPTIONS})
+    def triage(self, text: str, hint: str = TRIAGE_HINT) -> Outcome:
+        r = self.t.call("classify", {"text": text, "labels": LABELS, "hint": hint, "descriptions": DESCRIPTIONS})
         if not r.ok:
             return self._done(Outcome("triage", False, None, r, r.error or "error"), text)
         lab = (r.data or {}).get("label")

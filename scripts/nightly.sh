@@ -41,6 +41,6 @@ if [ -f config/agent-queue.txt ] && command -v ollama >/dev/null; then
     if [ "$now" -ge "${END/:/}" ] && [ "$now" -lt 2300 ]; then echo "window over (agent)"; break; fi
     echo "$(date '+%F %T') agent eval $id ($models, $per per class)"
     [ -f runs/agent/cases.json ] || nice uv run --extra agent python scripts/agent_eval.py build --seeds 1,2,3 --days 7
-    nice uv run --extra agent python scripts/agent_eval.py run --models "$models" --per-class "$per" --id "$id" --timeout 300
+    nice uv run --extra agent python scripts/agent_eval.py run --models "$models" --per-class "$per" --id "$id" --timeout 300 --until "$END"
   done < config/agent-queue.txt
 fi
