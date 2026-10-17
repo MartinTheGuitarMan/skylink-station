@@ -171,3 +171,19 @@ work with here, zero-shot. A decision model needs domain data (or a better descr
 100 cases per class). Air (started by hand under caffeinate, waits for 23:00): gemma-3-1b, gemma-4-e4b,
 Jev 0.8B, then gemma-4-12b, then gpt-oss-20b, same cases (seed 7 balanced). The Air must stay awake and
 plugged in; its job is not installed as a launchd agent.
+
+## Night 2026-10-16/17 results
+
+**Base arms, dev-s3 (7 days, 40+ outages), MAE ratio against the edge arm, lin_lag / persistence:**
+normal phase 1.00 for all three strategies; first 10 min after link-up: ignore 1.03 / 1.00, arrival 1.00 / 0.99,
+sorted 0.98 / 0.99; real-time coverage in that phase: ignore 0.79, arrival 0.70, sorted 0.65. So H3 is **not supported**
+(predicted >= 20 % worse with arrival order): feeding backfill in arrival order costs about nothing in MAE. Likely reason: the
+engine addresses history by absolute event second, so lag features survive out-of-order arrival; only the EWMA features see the
+disorder. The price of waiting for a clean replay (sorted) is coverage (65 % vs 79 %), not accuracy. During the outage itself
+the base arms produce nothing in real time (coverage 0-12 %), which is the actual degradation. Table: `reports/dev-s3-base.md`.
+**Triage, local models:** see `reports/agent-triage-dev-2026-10-17.md`. No model beats the rules zero-shot (Jev 0.8B 0.599, e4b 0.527,
+12B 0.491 vs rules 0.630). 0 invalid outputs everywhere.
+**Process issues:** (1) the Mini evaluation overran the 06:00 window (qwen3:4b at about 97 s per case); I stopped it at 08:30 and
+scored the logged answers. The eval script needs a deadline (`--until`) like the simulator. (2) gpt-oss-20b was skipped by the
+memory guard on the Air (34 % free). (3) The Mini ran under heavy memory pressure (153 MB unused, 6.9 GB compressed) during the
+Ollama run on top of the 6 GB Docker VM.
