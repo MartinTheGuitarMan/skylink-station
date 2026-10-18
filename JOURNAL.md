@@ -236,3 +236,25 @@ the nightly job does a plain `docker compose up -d` and would otherwise skip the
 Not yet measured: the C4 window (MAE in the 60 min after logged fronts, steps and drifts, against static). The truth events are
 in InfluxDB, but `analysis` has no event-window mode yet; add it before calling C4 (backlog 2b). The recipe line in section 3
 stays `untested` until then.
+
+## Iteration 5 (2026-10-18): event-window scoring for C4 (backlog 2b), built and tested offline
+
+**Did.** `skylink.analysis --event-windows` and `scripts/bench.py --event-windows` score each model against the static model
+(`lin_lag_static`) in the 60 min after logged regime changes: front, step, drift, seasonal onsets, plus the end of steps and drifts
+(`step_end`, `drift_end`, reported but not part of the C4 rule), and in "stationary" bins (outside every window, resampled by day).
+Reduction = 1 - MAE_online / MAE_static, pooled over windows, 95% CI by resampling events. `c4_verdict` applies the pre-registered
+rule: >= 15 % reduction in the windows (front, step, drift, seasonal pooled, event-weighted) and no worse than -3 % in stationary bins,
+per stream and horizon. The window starts at the logged onset on the target-time axis (the error is stamped when the truth arrives).
+The Influx path (per-minute sums, truth events from the raw bucket) is written but could not be exercised here: there is no
+InfluxDB on the Air and no dev run output on disk (`runs/` holds only agent logs), so it is untested against live data until the dev
+runs sync back. 50 tests pass (5 new, synthetic series).
+
+**Offline check** (bench, seed 1, 5 days, 2 warm-up, temp only, 2 drifts in the windows): `lin_rls` vs static: window reduction
++34 % at 600 s and +54 % at 3600 s, but stationary +21 % and +65 %. So the gain is not specific to events: the static model, frozen
+after 2 days, is simply a worse model everywhere. Read the C4 rule literally and `lin_rls` passes; read it as "event-specific gain"
+and it does not. I report both columns and will say so in the verdict; the pre-registered rule is unchanged. Too few events here
+(2 drifts) to say anything about the 15 %; the 7-day dev runs have more.
+
+**Support / no support for H5 / C4 when the drift runs return:** support = C4 rule passes on temp at >= 2 horizons on both seeds *and*
+window reduction exceeds stationary reduction by >= 0.05 on at least one of them (event-specific gain). No support = rule passes only
+because stationary gain is as large as the window gain (static is just stale), or fails.
