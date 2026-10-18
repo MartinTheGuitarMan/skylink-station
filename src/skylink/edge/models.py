@@ -183,6 +183,52 @@ def _snar_reg():
         optimizer=optim.SGD(0.0005), loss=optim.losses.Huber(epsilon=1.0), l2=0.0, intercept_lr=0.0001)
 
 
+class ForgettingRidge:
+    """Exponentially forgetting ridge regression (RLS in batch form), river-style learn_one/predict_one.
+
+    Keeps A = sum lam^k x x' and b = sum lam^k x y over standardised, clipped features plus an
+    intercept, and solves (A + ridge I) w = b every `refit` learns. The ridge term does not decay,
+    so a stuck sensor (constant features) cannot wind the covariance up the way textbook RLS does.
+    Untrained, w = 0 and the forecast equals persistence (it predicts the increment).
+    `boost(n)`: use the fast forgetting factor `lam_fast` for the next n learns, then return to `lam`."""
+
+    def __init__(self, lam=0.9999, lam_fast=0.998, ridge=1.0, refit=5):
+        self.lam, self.lam_fast, self.ridge, self.refit = lam, lam_fast, ridge, refit
+        self.sc = preprocessing.StandardScaler()
+        self.A = None
+        self.b = self.w = None
+        self.n = 0
+        self.boost_left = 0
+
+    def boost(self, n: int) -> None:
+        self.boost_left = max(self.boost_left, n)
+
+    def _z(self, x: dict) -> np.ndarray:
+        t = self.sc.transform_one(x)
+        z = np.fromiter((max(-5.0, min(5.0, v)) for v in t.values()), float, len(t))
+        return np.append(z, 1.0)
+
+    def learn_one(self, x: dict, y: float) -> None:
+        self.sc.learn_one(x)
+        z = self._z(x)
+        if self.A is None:
+            d = len(z)
+            self.A, self.b, self.w = np.zeros((d, d)), np.zeros(d), np.zeros(d)
+        lam = self.lam
+        if self.boost_left > 0:
+            lam, self.boost_left = self.lam_fast, self.boost_left - 1
+        self.A = lam * self.A + np.outer(z, z)
+        self.b = lam * self.b + z * y
+        self.n += 1
+        if self.n % self.refit == 0:
+            self.w = np.linalg.solve(self.A + self.ridge * np.eye(len(z)), self.b)
+
+    def predict_one(self, x: dict) -> float:
+        if self.w is None:
+            return 0.0
+        return float(self._z(x) @ self.w)
+
+
 class Direct:
     """One river regressor per horizon, trained on increments.
 
@@ -190,14 +236,20 @@ class Direct:
     challenger starts learning beside the champion; after `probation` paired samples the
     better one stays (no forgetting of what still works). `reset_on_drift` is the naive
     alternative (throw the model away), kept to measure how bad it is.
+    `vn_boost` (RQ2, iteration 4): ADWIN on the *volatility-normalised* error (abs error divided by its
+    own slow EWMA, clipped), and the response is soft: the model's forgetting is sped up for
+    `boost_s` learns (`ForgettingRidge.boost`); nothing is reset or replaced.
     `static_after`: learning stops after that many seconds (the static arm for RQ2)."""
 
     def __init__(self, name, horizons, factory, adwin=False, reset_on_drift=False, static_after=None,
-                 stride=1, probation=600, delta=0.002):
+                 stride=1, probation=600, delta=0.002, vn_boost=False, vn_tau=1800.0, boost_s=600):
         self.name, self.horizons, self.factory = name, horizons, factory
         self.m = {h: factory() for h in horizons}
         self.adwin = {h: drift.ADWIN(delta=delta) for h in horizons} if adwin or reset_on_drift else None
         self.reset_on_drift, self.probation = reset_on_drift, probation
+        self.vn = {h: drift.ADWIN(delta=delta) for h in horizons} if vn_boost else None
+        self.vn_scale: dict[int, float] = {}
+        self.vn_tau, self.boost_s = vn_tau, boost_s
         self.chal: dict[int, dict] = {}
         self.static_after, self.first_s, self.stride = static_after, None, stride
         self.events: list[tuple[int, int, str]] = []  # (second, horizon, kind), drained by the engine
@@ -207,7 +259,24 @@ class Direct:
         self.m = {h: self.factory() for h in self.horizons}
         self.chal.clear()
 
+    def _on_score_vn(self, s: int, h: int, abs_err: float) -> None:
+        sc = self.vn_scale.get(h)
+        if sc is None:
+            self.vn_scale[h] = max(abs_err, 1e-9)
+            return
+        z = min(abs_err / max(sc, 1e-9), 10.0)  # relative to what this horizon has been missing by lately
+        self.vn_scale[h] = sc + (max(abs_err, 1e-9) - sc) / self.vn_tau
+        d = self.vn[h]
+        d.update(z)
+        if d.drift_detected:
+            self.events.append((s, h, "detected"))
+            if hasattr(self.m[h], "boost"):
+                self.m[h].boost(self.boost_s)
+                self.events.append((s, h, "boost"))
+
     def on_score(self, s: int, h: int, abs_err: float) -> None:
+        if self.vn is not None:
+            self._on_score_vn(s, h, abs_err)
         if self.adwin is None:
             return
         d = self.adwin[h]
@@ -252,6 +321,10 @@ class Direct:
         return out
 
 
+def _rls(lam, lam_fast=0.998):
+    return lambda: ForgettingRidge(lam=lam, lam_fast=lam_fast)
+
+
 def _hat():
     return tree.HoeffdingAdaptiveTreeRegressor(grace_period=100, seed=1)
 
@@ -273,6 +346,11 @@ def build(name: str, horizons, cfg, params):
     if name == "lin_lag_adwin": return Direct(name, horizons, _lin, adwin=True)
     if name == "lin_lag_reset": return Direct(name, horizons, _lin, reset_on_drift=True)
     if name == "lin_lag_static": return Direct(name, horizons, _lin, static_after=int(params.get("static_after", 2 * DAY)))
+    # RQ2 (iteration 4): forgetting instead of reset. lam 0.9999 = memory ~3 h, 0.99999 = ~28 h.
+    if name == "lin_rls": return Direct(name, horizons, _rls(params.get("lam", 0.9999)))
+    if name == "lin_rls_slow": return Direct(name, horizons, _rls(params.get("lam", 0.99999)))
+    if name == "lin_rls_vn": return Direct(name, horizons, _rls(params.get("lam", 0.9999), params.get("lam_fast", 0.998)),
+                                           vn_boost=True, vn_tau=params.get("vn_tau", 1800.0), boost_s=int(params.get("boost_s", 600)))
     if name == "hat": return Direct(name, horizons, _hat, stride=params.get("stride", 1))
     if name == "arf": return Direct(name, horizons, _arf(params.get("n_models", 5)), stride=params.get("stride", 1))
     raise KeyError(name)
