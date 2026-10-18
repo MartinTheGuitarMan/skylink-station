@@ -287,3 +287,25 @@ ratio). H1/H2 (solar useful horizon <= 60 s): consistent but at skill 0.01-0.02,
 **Support / no support for "solar is forecastable beyond persistence with geometry":** support = on the Mini runs `clearsky_adapt` has skill
 > 0 with CI excluding 0 at h >= 30 s on both seeds, and `clearsky_adapt` >= `clearsky_shape` on the seed with a phase shift. No support = skill
 <= 0 on either seed or CI covering 0 at 60 and 300 s. Result for the recipe: stays `dev` until locked seeds.
+
+## Iteration 7 (2026-10-18): audit of the agent layer (backlog 3) and the small gaps built
+
+**What exists (code, tests, evidence).** (1) MCP stdio client for mcp-minions (`MinionsClient`), errors returned as codes, latency measured,
+`FakeTransport` for tests. (2) Four jobs with in-code validation (triage, proposal, explanation, note). (3) Guardrails (`guard.py`: action
+space, dwell, 50 % worse rejection, 20 % rollback), tested. (4) Rules twin and fixed twin in the closed-loop bench. (5) Call log (JSONL).
+(6) Local models: LM Studio gemma-3-1b, gemma-4-e4b, gemma-4-12b (gpt-oss-20b skipped by the memory guard), Ollama gemma3 1b/4b and qwen3:4b,
+Jev 0.8B: **only used for job T**. Dev-seed result so far: no zero-shot model beats the rules (best 0.60 vs 0.63); with three worked
+examples gemma-4-e4b 0.76, still below the 0.81 bar.
+**What was missing against `docs/agent.md` and C5.** (a) The asynchronous worker with a bounded queue and dropped-call logging (C5c says
+"enforced by test"): none; the bench called the agent inline. (b) The guardrail verdict was never attached to a call, so accepted fraction
+and per-call outcome could not be computed; no run id, no call id. (c) No C5c summary (p50/p95, invalid rate, accepted fraction) from
+the proposal bench, and no C5b rule check. (d) The doc listed `seasonal_naive` in the action space; the code has `seasonal_anchor`. (e) Jobs
+P, N, E never called live; no scoring for N and E. (f) The agent is not in the live stack. (g) The bench ran one horizon on two streams.
+(h) Nothing writes the `agent` Influx bucket.
+**Built (small).** `AsyncAgent` (non-blocking submit, drop-oldest with a `DROPPED` log record; two tests incl. a slow model that never
+holds the caller), call ids and `CallLog.verdict`, `summarise_log` (C5c), `c5b_check` (macro ratio <= 0.97 and no stream worse than +1 %),
+wired into `scripts/agent_proposals.py` (verdicts logged, C5b/C5c printed), doc fixed. 59 tests pass. Scripted-agent smoke (2 dev days,
+temp): rules twin 0.953 of fixed MAE (CI 0.91-0.99), the scripted bad agent 1.12, as before. Large gaps are in BACKLOG item 3 (a-f).
+**Not run:** no live model, no new queue line. A closed-loop live run needs a model server on the Mini plus a section in the Mini's
+`nightly.sh`, which I did not touch. Read-out when it is run: *support for the agent* = C5b macro ratio <= 0.97 over all five streams, no
+stream worse than +1 %, **and** better than the rules twin; *no support* otherwise (H7 predicts |delta MAE| < 1 %).

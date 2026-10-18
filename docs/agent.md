@@ -1,7 +1,8 @@
 # Agent layer (mcp-minions): design
 
-Status (2026-10-16): implemented and unit-tested with a fake transport; no live model call made yet. This is written before any
-agent call is made, so the evaluation cannot be fitted afterwards.
+Status (2026-10-18, audit in `JOURNAL.md` iteration 7): built and unit-tested; live calls so far only for job T (triage, dev cases, six
+models) -- jobs P, N and E have never been called live. This was written before any agent call was made, so the evaluation
+cannot be fitted afterwards. The agent is not in the live stack: C5a/C5b are evaluated offline on replayed dev data.
 
 ## Principle
 The agent proposes. Guardrails decide. The forecast loop never waits for the agent. Every call is
@@ -24,7 +25,7 @@ queue; when the queue is full, the oldest request is dropped and logged as `drop
 
 ## Action space and guardrails (job P)
 Allowed: switch the *served* model for one (stream, horizon) among the models already running
-(`lin_lag`, `lin_lag_static`, `hat`, `holt`, `persistence`, `seasonal_naive`). No new model, no
+(`lin_lag`, `lin_lag_static`, `hat`, `holt`, `persistence`, `seasonal_anchor`; the closed-loop bench offers five of them). No new model, no
 hyperparameter outside a fixed list, no code. Guardrails: at most 1 switch per (stream, horizon)
 per 30 min of event time; a switch is rolled back automatically if the 10 min MAE after it exceeds
 the 10 min MAE before it by more than 20 %; a proposal for a model with a worse trailing MAE than
@@ -51,7 +52,7 @@ raw output, parsed output, verdict and outcome (the 10 min MAE change after an a
 time on the Air; the Mini decides what can run in parallel.
 
 ## Dependencies
-Triage needs the base arm (alerts that can be backfill artefacts), backlog item 4.
+Triage needs the base arm (alerts that can be backfill artefacts): built in iteration 2. Artefact cases still come from the Python replay twin, not the live run.
 
 ## Implementation map
 - `src/skylink/agent/minions.py`: MCP stdio client (`MinionsClient`), `FakeTransport` for tests. Errors come back as codes, never raise.
@@ -59,6 +60,7 @@ Triage needs the base arm (alerts that can be backfill artefacts), backlog item 
 - `src/skylink/agent/alerts.py`: plain detector, truth-labelled cases from the simulator, arrival-order artefact cases, rules baseline.
 - `src/skylink/agent/linkmodel.py`: Python twin of the Node-RED outage chain (tested against the JS, transition by transition).
 - `src/skylink/agent/guard.py`: guardrails (action space, dwell, evidence, 50 % worse rejection, 20 % rollback).
+- `AsyncAgent` (jobs.py): worker thread with a bounded queue, drop-oldest logged as `DROPPED`; `submit` never blocks (tested). `CallLog` ids and guardrail verdicts, `summarise_log` (C5c numbers), `c5b_check` (C5b rule).
 - `scripts/agent_eval.py`: triage evaluation. `scripts/agent_proposals.py`: closed-loop fixed vs rules vs agent bench.
 Dev-seed case set (seeds 1-3, 7 days): 2331 real events, 948 sensor faults, 216 backfill artefacts
 (1022 ambiguous and 26 unexplained alerts dropped). Rules baseline macro-F1 on a balanced set: 0.658, so C5a

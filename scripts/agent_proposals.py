@@ -17,7 +17,7 @@ from pathlib import Path
 import numpy as np
 
 from skylink.agent.guard import Switchboard, Trailing
-from skylink.agent.jobs import ALLOWED_MODELS, Agent, CallLog
+from skylink.agent.jobs import ALLOWED_MODELS, Agent, CallLog, c5b_check, summarise_log
 from skylink.agent.minions import FakeTransport, MinionsClient
 from skylink.edge.engine import Engine
 from skylink.sim.replay import load_cfg, make_gens
@@ -95,8 +95,9 @@ def main():
                     stats[arm]["rollbacks"] += 1
         for item in [p for p in pending if p[0] <= s]:
             pending.remove(item)
-            _, arm, k, m = item
+            _, arm, k, m, call = item
             ok, why = boards[arm].propose(k, m, s, {c: trail[(k[0], k[1], c)].mae() for c in CANDS}, "agent")
+            agents[arm].log.verdict(call, ok, why)
             stats[arm]["accepted" if ok else "rejected"] += 1
         if s >= next_decide.setdefault(key, warm - 7200 + (sum(map(ord, str(key))) % 600)) and model == "lin_lag":
             next_decide[key] = s + DECIDE_S
@@ -114,7 +115,7 @@ def main():
                 if not o.valid:
                     stats[arm]["invalid"] += 1
                 elif o.value["action"] == "switch":
-                    pending.append((s + int(o.reply.latency_ms / 1000 * a.speed), arm, key, o.value["model"]))
+                    pending.append((s + int(o.reply.latency_ms / 1000 * a.speed), arm, key, o.value["model"], o.call))
 
     eng.hook = hook
     t0 = time.time()
@@ -147,6 +148,11 @@ def main():
     for r in rows:
         print(f"| {r['stream']} | {r['h']} | {r['arm']} | {r['mae']} | {r['ratio_vs_fixed']} | {r['ci']} | {r['switches']} |")
     print(json.dumps(res["stats"]))
+    for arm in arms:
+        if arm.startswith("agent:") or arm == "rules":
+            print("C5b", json.dumps(c5b_check(rows, arm)))
+    for arm in agents:
+        print("C5c", arm, json.dumps(summarise_log(out / f"{arms[arm]}.jsonl")))
 
 
 if __name__ == "__main__":

@@ -1,9 +1,14 @@
 """The four narrow agent jobs. Every output is validated here, in code; the agent only proposes."""
 from __future__ import annotations
 
+import itertools
 import json
+import queue
 import re
+import statistics
+import threading
 import time
+from collections import defaultdict, deque
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -43,20 +48,111 @@ class Outcome:
     value: object | None
     reply: Reply
     why: str = ""
+    call: int = 0   # id in the call log, to attach the guardrail verdict later
 
 
 class CallLog:
-    """JSONL log of every agent call (input, raw output, parsed, verdict). Later: also the `agent` bucket."""
+    """JSONL log of every agent call (input, raw output, parsed) with a `call` id. The guardrail verdict
+    comes later and is logged as its own record (`kind: verdict`, same `call` id); `summarise_log` joins them.
+    Not yet mirrored to the Influx `agent` bucket (backlog)."""
 
-    def __init__(self, path: str | Path | None):
-        self.path = Path(path) if path else None
+    def __init__(self, path: str | Path | None, run: str = ""):
+        self.path, self.run = (Path(path) if path else None), run
+        self._ids, self._lock = itertools.count(1), threading.Lock()
         if self.path:
             self.path.parent.mkdir(parents=True, exist_ok=True)
 
-    def write(self, **rec) -> None:
+    def write(self, **rec) -> int:
+        cid = next(self._ids)
         if self.path:
-            with self.path.open("a") as f:
-                f.write(json.dumps({"ts": time.time(), **rec}, default=str) + "\n")
+            with self._lock, self.path.open("a") as f:
+                f.write(json.dumps({"ts": time.time(), "call": cid, "run": self.run, **rec}, default=str) + "\n")
+        return cid
+
+    def verdict(self, call: int, accepted: bool, why: str = "", outcome: float | None = None) -> None:
+        """The guardrails' decision on a proposal; `outcome` = relative MAE change over the 10 min after an accepted switch."""
+        if self.path:
+            with self._lock, self.path.open("a") as f:
+                f.write(json.dumps({"ts": time.time(), "kind": "verdict", "call": call, "accepted": accepted,
+                                    "why": why, "outcome": outcome}) + "\n")
+
+
+def summarise_log(path: str | Path) -> dict:
+    """C5c numbers per (model, job) from a call log: calls, dropped, invalid-output rate, p50/p95 latency (s), accepted fraction."""
+    calls, verdicts = {}, {}
+    for line in Path(path).read_text().splitlines():
+        r = json.loads(line)
+        (verdicts.__setitem__(r["call"], r) if r.get("kind") == "verdict" else calls.__setitem__(r["call"], r))
+    groups = defaultdict(list)
+    for c in calls.values():
+        groups[(c.get("model"), c.get("job"))].append(c)
+    out = {}
+    for (model, job), cs in sorted(groups.items(), key=str):
+        done = [c for c in cs if c.get("error") != "DROPPED"]
+        lat = sorted(c["latency_ms"] for c in done) or [0.0]
+        vs = [verdicts[c["call"]] for c in done if c["call"] in verdicts]
+        out[f"{model}/{job}"] = {
+            "calls": len(done), "dropped": len(cs) - len(done),
+            "invalid_rate": round(sum(1 for c in done if not c.get("valid")) / max(len(done), 1), 3),
+            "p50_s": round(statistics.median(lat) / 1000, 2), "p95_s": round(lat[int(0.95 * (len(lat) - 1))] / 1000, 2),
+            "accepted_frac": round(sum(1 for v in vs if v["accepted"]) / len(vs), 3) if vs else None}
+    return out
+
+
+def c5b_check(rows: list[dict], arm: str, min_gain: float = 0.03, max_loss: float = 0.01) -> dict:
+    """C5b on the rows of `scripts/agent_proposals.py`: macro mean over (stream, horizon) of MAE ratio vs the fixed
+    twin must be <= 1 - min_gain, and no stream may be worse than 1 + max_loss. Unit-free, so streams can be pooled.
+    The bootstrap CI of the macro ratio is not computed here (backlog); per-row CIs are in the rows."""
+    mine = [r for r in rows if r["arm"] == arm]
+    if not mine:
+        return {"arm": arm, "pass": False, "why": "no rows"}
+    macro = sum(r["ratio_vs_fixed"] for r in mine) / len(mine)
+    worst = max(mine, key=lambda r: r["ratio_vs_fixed"])
+    ok = macro <= 1 - min_gain and worst["ratio_vs_fixed"] <= 1 + max_loss
+    return {"arm": arm, "macro_ratio": round(macro, 4), "worst": f"{worst['stream']}/{worst['h']}", "worst_ratio": worst["ratio_vs_fixed"],
+            "pass": bool(ok)}
+
+
+class AsyncAgent:
+    """Runs agent calls on a worker thread so the forecast loop never waits (C5c). `submit` returns at once;
+    the result goes to `on_done(tag, outcome)` on the worker thread. The queue is bounded: when it is full the
+    oldest waiting request is dropped and logged as `DROPPED`."""
+
+    def __init__(self, agent: Agent, on_done, max_queue: int = 8):
+        self.agent, self.on_done = agent, on_done
+        self.q: deque = deque()
+        self.max_queue, self.dropped = max_queue, 0
+        self._cv, self._stop = threading.Condition(), False
+        self._t = threading.Thread(target=self._work, daemon=True)
+        self._t.start()
+
+    def submit(self, job: str, tag, *args) -> None:
+        with self._cv:
+            if len(self.q) >= self.max_queue:
+                old = self.q.popleft()
+                self.dropped += 1
+                self.agent.log.write(job=old[0], model=self.agent.t.name, input=str(old[2])[:500], valid=False,
+                                     error="DROPPED", why="queue full", latency_ms=0.0)
+            self.q.append((job, tag, args))
+            self._cv.notify()
+
+    def _work(self) -> None:
+        while True:
+            with self._cv:
+                while not self.q and not self._stop:
+                    self._cv.wait()
+                if self._stop and not self.q:
+                    return
+                job, tag, args = self.q.popleft()
+            self.on_done(tag, getattr(self.agent, job)(*args))
+
+    def close(self, drain: bool = True) -> None:
+        with self._cv:
+            if not drain:
+                self.q.clear()
+            self._stop = True
+            self._cv.notify()
+        self._t.join(30)
 
 
 class Agent:
@@ -64,8 +160,8 @@ class Agent:
         self.t, self.log = transport, log or CallLog(None)
 
     def _done(self, o: Outcome, inp: str, extra: dict | None = None) -> Outcome:
-        self.log.write(job=o.job, model=self.t.name, input=inp, raw=o.reply.raw[:2000], valid=o.valid,
-                       value=o.value, why=o.why, error=o.reply.error, latency_ms=round(o.reply.latency_ms, 1), **(extra or {}))
+        o.call = self.log.write(job=o.job, model=self.t.name, input=inp, raw=o.reply.raw[:2000], valid=o.valid,
+                                value=o.value, why=o.why, error=o.reply.error, latency_ms=round(o.reply.latency_ms, 1), **(extra or {}))
         return o
 
     def triage(self, text: str, hint: str = TRIAGE_HINT) -> Outcome:
