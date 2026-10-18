@@ -187,3 +187,52 @@ the base arms produce nothing in real time (coverage 0-12 %), which is the actua
 scored the logged answers. The eval script needs a deadline (`--until`) like the simulator. (2) gpt-oss-20b was skipped by the
 memory guard on the Air (34 % free). (3) The Mini ran under heavy memory pressure (153 MB unused, 6.9 GB compressed) during the
 Ollama run on top of the 6 GB Docker VM.
+
+## Iteration 4 (2026-10-18): drift mechanism for increment models (RQ2), built, run queued
+
+**Why the old detectors failed (from iteration 1 and the dev-s1/s2 scores).** ADWIN watched the raw
+absolute error. That error is not stationary even when nothing is wrong: its scale follows the time
+of day (temperature and wind are noisier by day). So ADWIN fired on the diurnal swing, and the two
+responses were destructive: reset throws away a model that was fine (skill -75 to -136 % at h >= 60
+on temp), and the challenger cannot learn a diurnal pattern in a 10 min probation. A level step
+adds only one transient to an increment error (the model predicts y[t+h] - y[t]), so it is also a weak
+signal for an error detector.
+
+**What is different now (two changes, kept separate so the result is attributable).**
+1. `lin_rls` (lam 0.9999, memory about 3 h) and `lin_rls_slow` (lam 0.99999, about 28 h): the same
+   features and increment target as `lin_lag`, but an exponentially forgetting ridge regression
+   (`ForgettingRidge`: decayed A and b, ridge term that does not decay, so a stuck sensor cannot wind it
+   up; untrained = persistence). Forgetting is continuous, needs no detector, and never discards
+   everything. This is the RQ2 arm without any detector.
+2. `lin_rls_vn`: `lin_rls` plus ADWIN on the **volatility-normalised** error (abs error divided by
+   its own slow EWMA, tau 1800 s, clipped at 10; delta 0.002). The slow diurnal change in error scale is divided
+   out, so what is left for ADWIN is a sudden change in error relative to recent error. The response is **soft**:
+   forgetting runs at 0.998 (memory about 8 min) for the next 600 learns, then returns to 0.9999. No reset, no
+   challenger, no probation. Detections and boosts are logged in the `drift` measurement (kinds `detected`, `boost`).
+Unit-tested (`tests/test_drift.py`, 45 tests pass): forgetting follows a sign flip where no forgetting does not, the normalised detector
+stays quiet on a 4x slow swing in error scale where the raw one fires at least 3 times, and fires on a sudden
+5x jump; stuck-sensor input stays finite. Cost on the Air, 4 temp horizons: 37-39 us per step per model
+(`lin_lag` 48 us), no crashes.
+
+**Honest expectation.** The pre-registered H5 (online beats static by >= 15 % in the hour after a
+step or drift) may still fail for a mechanism reason I cannot fix by detection: persistence-anchored
+increment forecasts barely notice a level step. Plain forgetting is more likely to help than the
+detector. The detector variant earns its place only if it beats `lin_rls` itself.
+
+**Plan.** Queued `dev-s1-drift` and `dev-s2-drift` (seeds 1 and 2, 7 days, 60x, default scenario) in
+`config/queue.txt`; the three new models are in the default model set beside `lin_lag`, `lin_lag_static`,
+`lin_lag_adwin`, `lin_lag_reset`, so every comparison is paired inside one run. Dev seeds only, nothing locked.
+Resumable across nights (about 3 h each). Not run on the Air. **The Mini needs the new code first:** the
+river image bakes the source in, so after syncing this repo to the Mini run `make up` (rebuild) once;
+the nightly job does a plain `docker compose up -d` and would otherwise skip the new models.
+**Read-out (scores with `skylink.analysis`, 2 day warm-up, per stream and horizon):**
+- *Support for forgetting (RQ2):* `lin_rls` or `lin_rls_slow` skill >= `lin_lag_static` + 0.03 on temp at 600 and 3600 s on **both** seeds,
+  and within 0.03 of `lin_lag` (no more than 3 % loss) on the stationary streams (wind, vibration) and pressure.
+- *Support for the detector:* `lin_rls_vn` beats `lin_rls` by >= 0.02 skill on at least two of the
+  stream/horizon cells where any event-driven gain is expected (temp 600/3600, wind 120), on both seeds, and its boosts per day
+  stay below about 24 per horizon (a detector that fires hourly is the diurnal-swing failure again).
+- *No support:* anything else. Specifically, `lin_rls_vn` equal to `lin_rls` means the detector adds nothing and the answer to RQ2 is "forget, do not detect".
+- *Harm:* any new variant below `lin_lag` by more than 0.03 at h >= 60 on temp, as the reset variant was.
+Not yet measured: the C4 window (MAE in the 60 min after logged fronts, steps and drifts, against static). The truth events are
+in InfluxDB, but `analysis` has no event-window mode yet; add it before calling C4 (backlog 2b). The recipe line in section 3
+stays `untested` until then.
