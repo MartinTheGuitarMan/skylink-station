@@ -2,3 +2,5 @@
 dev-s1 config/scenario-default.toml 1 7 60
 dev-s2 config/scenario-default.toml 2 7 60
 dev-s3 config/scenario-default.toml 3 7 60
+dev-s1-drift config/scenario-default.toml 1 7 60
+dev-s2-drift config/scenario-default.toml 2 7 60
