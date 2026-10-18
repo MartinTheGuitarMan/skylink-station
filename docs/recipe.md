@@ -26,6 +26,8 @@ Standardise, clip features (spikes must not blow up a linear learner), predict *
 - **Notes and explanations**: `untested`.
 Recipe so far: rules first for what rules can decide; a small model only for the residue; few-shot examples written from reviewed cases; every output validated in code; the model proposes, guardrails decide.
 
+Model choice for these jobs (general comparison of fifteen local model runs on an Air and a Mini, one run each, `dev`): honesty ("I don't have that" instead of an invented number) separates models more than size does; qwen3:8b was the best all-rounder, gemma-4-12b the most careful, llama3.1:8b and phi4-mini the fastest but they invent; below about 3B nothing is reliable on grounded questions. Thinking models need a token budget well above 3000 or they return nothing.
+
 ## 6. Guardrails that are cheap and worked in tests
 Action space fixed in advance; one change per 30 min; reject proposals worse than the incumbent by 50 %; automatic rollback when the next 10 minutes are 20 % worse; log every call with input, output, latency, verdict. Count invalid outputs as failures.
 
