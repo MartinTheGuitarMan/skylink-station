@@ -258,3 +258,32 @@ and it does not. I report both columns and will say so in the verdict; the pre-r
 **Support / no support for H5 / C4 when the drift runs return:** support = C4 rule passes on temp at >= 2 horizons on both seeds *and*
 window reduction exceeds stationary reduction by >= 0.05 on at least one of them (event-specific gain). No support = rule passes only
 because stationary gain is as large as the window gain (static is just stale), or fails.
+
+## Iteration 6 (2026-10-18): solar, ratio to a clear-sky shape (backlog 4), offline only
+
+**Why.** Every River model lost to persistence on solar (-10 to -24 %). Cloud cliffs are unpredictable steps, but the daily ramp
+is deterministic and persistence ignores it; the linear learners lose because squared-error fitting chases cliffs and noise.
+**Tried (bench, dev seeds 1-3, solar only, 7 days, 2 warm-up, skill vs persistence; seed 1 4-day runs for the dead ends):**
+1. `clearsky` (self-learned per-minute envelope, maximum over days with decay; forecast = envelope(s+h) * recent clearness): -25 to
+   -320 %. The envelope is jagged (max of noisy minutes, spike faults), and a persistence of a *ratio* to a noisy envelope is worse than
+   persistence of the level. Anchored form (y + k * (env(s+h) - env(s))) with a 21-minute smoothed envelope: -1 to -7 %; the ramp
+   it implies is wrong in the morning because the seasonal events shift phase and amplitude and a max over earlier days remembers the
+   old curve. Class kept for the record, not in the default set.
+2. `clearsky_shape`: yhat(s+h) = y(s) * f(s+h) / f(s), f = max(cos(2 pi (t - noon) / day), 0)^p, no fitted parameters, persistence
+   at night (f below 0.05) and the ratio capped at 2. This is the first model that beats persistence on solar. Fixed noon 12:00, p=1
+   (p=1.3 is the simulator's exponent: +0.5 point, so not used): seed 1 +0.1/+1.0/+1.7/+2.6 % at 5/30/60/300 s, seed 3 +0.0/+0.3/+0.6/+1.4 %,
+   **seed 2 -0.3/-1.0/-1.1/-0.7 %** (CIs mostly exclude 0 on the negative side): a fixed noon is wrong after a seasonal phase shift.
+3. `clearsky_adapt`: same, noon moved each day to the centroid of the previous day's curve (blend 0.5). Seed 1 +0.1/+0.9/+1.6/+2.2 %,
+   seed 2 +0.2/+1.5/+2.2/+3.1 %, seed 3 +0.1/+0.8/+1.3/+2.1 %; all CIs exclude 0 for h >= 30. Cost 0.9 us per step (persistence 0.3, `lin_lag` 60).
+4. `lin_cs` (linear learner on the residual of the shape forecast, day regime only): -25/-20/-19/-7 %, same as `lin_lag`. Nothing is left
+   for a squared-error learner once the ramp is removed; the residual is cloud cliffs. Class kept for the record, not in the default set.
+**Read honestly.** +2 to +3 % at 300 s is small and a development result with the shape tuned on these seeds (the adaptive rule was chosen
+after seeing seed 2). It is far from C1's 0.10, so solar does not move C1 toward 3 of 5 streams by itself. What it does change is the
+recipe line "persistence is the product on solar": a one-line geometric correction beats persistence at every horizon from 30 s, a learned
+model does not. Not tested: a robust (quantile or Huber) learner on the shape residual; a seasonal fit of the amplitude (irrelevant for a
+ratio). H1/H2 (solar useful horizon <= 60 s): consistent but at skill 0.01-0.02, below the 0.05 bar of H2's "useful".
+**Plan.** No dedicated run. `clearsky_shape` and `clearsky_adapt` (cheap) are in the default model set, so they ride on the queued
+`dev-s1-drift` and `dev-s2-drift` runs after the Mini sync (the image must be rebuilt anyway for the drift models).
+**Support / no support for "solar is forecastable beyond persistence with geometry":** support = on the Mini runs `clearsky_adapt` has skill
+> 0 with CI excluding 0 at h >= 30 s on both seeds, and `clearsky_adapt` >= `clearsky_shape` on the seed with a phase shift. No support = skill
+<= 0 on either seed or CI covering 0 at 60 and 300 s. Result for the recipe: stays `dev` until locked seeds.

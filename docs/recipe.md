@@ -9,7 +9,7 @@ Measure skill against persistence first (it is free and often hard to beat). `de
 - Smooth, strongly structured streams (temperature): a simple online linear model beats persistence by 5 % at 10 s, 15 % at 1 min, 20 % at 10 min, 35-40 % at 1 h.
 - Gusty or oscillating streams (wind, vibration RMS): 18-27 % at seconds to minutes.
 - Random-walk-like streams with unpredictable regime changes (pressure with fronts): nothing beyond about a minute. Do not spend compute on it.
-- Streams dominated by sudden cliffs (solar with cloud edges): every model lost to persistence. Persistence is the product until a regime-aware model exists.
+- Streams dominated by sudden cliffs (solar with cloud edges): every *learned* model lost to persistence (-10 to -24 %). A parameter-free geometric correction does not: scale the present value by the ratio of a clear-sky shape between now and the horizon (`clearsky_adapt`, noon taken from yesterday's curve), +1 to +3 % from 30 s to 5 min, `dev` seeds 1-3; a fixed noon loses 1 % after a seasonal phase shift. Small, but the only gain on this stream. A linear learner on the residual of that forecast still loses 7-25 %: do not train on cloud cliffs.
 
 ## 2. Pick the cheapest model that clears the bar
 Standardise, clip features (spikes must not blow up a linear learner), predict **increments** (y[t+h] - y[t]) so an untrained model equals persistence, and use a stable learner (Bayesian ridge, `dev`). Per-step cost `dev`: persistence 1 us, linear 55-75 us, Hoeffding adaptive tree 110-520 us, SNARIMAX about 1 ms for +1 % at short horizons. Trees collapse on solar and pressure and crash on constant input. Complexity has not paid anywhere yet.

@@ -4,7 +4,7 @@ Top five:
 1. **Base arm and backfill strategies**: arrival order vs event-time order vs ignore-late (RQ1); prerequisite for alert triage.
 2. **Drift mechanism that fits increment models**: ADWIN on volatility-normalised error, or exponentially forgetting least squares (RQ2). Error-stream ADWIN with reset or challenger was harmful (journal, iteration 1). **Built in iteration 4, dev run queued; waiting for the result.**
 3. **Agent layer** per `docs/agent.md`: mcp-minions client, guardrails, call log, four local models (RQ3).
-4. **Solar models**: all lose to persistence; try the ratio to a clear-sky shape, night/day regimes.
+4. ~~Solar models~~ **Done offline in iteration 6**: clear-sky ratio beats persistence by 1-3 % on dev seeds; learned models still lose. Waiting for the Mini runs. Left over: a robust (quantile) learner on the shape residual.
 5. **Locked-seed verdict runs** (seeds 101-105, 7 days, all streams) once 1-4 are in; needs the night window and the Mini.
 
 Next:

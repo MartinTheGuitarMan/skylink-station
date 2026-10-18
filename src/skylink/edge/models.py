@@ -183,6 +183,116 @@ def _snar_reg():
         optimizer=optim.SGD(0.0005), loss=optim.losses.Huber(epsilon=1.0), l2=0.0, intercept_lr=0.0001)
 
 
+class ClearSky:
+    """Ratio to a self-learned clear-sky envelope (backlog 4, solar).
+
+    Solar loses to persistence because the daily ramp and noise add error that the cloud cliffs do not
+    excuse. The envelope is the per-minute-of-day maximum of the 1-minute mean seen so far, decaying
+    `decay` per day so seasonal changes are followed (nothing about the simulator's shape is built in).
+    Clearness k = y / envelope, k_hat its mean over the last `k_win` values. Forecast for s+h, anchored
+    (default): y + k_hat * (envelope(s+h) - envelope(s)), i.e. persistence plus the clear-sky ramp scaled by
+    how cloudy it is now; unanchored (`anchor` = 0): envelope(s+h) * k_hat (persistence of the ratio). Regimes: when the envelope
+    at s and at s+h is below `night_w` the sun is down and the forecast is persistence; the envelope
+    needs `min_days` of history before it is trusted (before that: persistence)."""
+    name = "clearsky"
+
+    def __init__(self, horizons, cfg, params):
+        self.horizons = horizons
+        self.decay = params.get("decay", 0.97)
+        self.k_win = int(params.get("k_win", 10))
+        self.night_w = params.get("night_w", 15.0)
+        self.anchor = bool(params.get("anchor", 1))
+        self.gain = params.get("gain", 1.0)
+        self.min_s = params.get("min_days", 1.0) * DAY
+        self.env = np.zeros(1440)
+        self.smooth = self.env
+        self.smooth_bins = int(params.get("smooth_min", 10))  # the envelope is a moving average over 2n+1 minutes
+        self.acc, self.acc_n, self.acc_bin = 0.0, 0, None
+        self.first_s = None
+        self.kbuf: deque = deque(maxlen=self.k_win)
+
+    def _env_at(self, s: float) -> float:
+        x = (s % DAY) / 60.0 - 0.5  # bin centres
+        i = int(math.floor(x))
+        f = x - i
+        return float(self.smooth[i % 1440] * (1 - f) + self.smooth[(i + 1) % 1440] * f)
+
+    def step(self, s, y, hist, x, fh):
+        if self.first_s is None:
+            self.first_s = s
+        b = int((s % DAY) // 60)
+        if self.acc_bin is not None and b != self.acc_bin:
+            m = self.acc / max(self.acc_n, 1)
+            self.env[self.acc_bin] = max(m, self.env[self.acc_bin] * self.decay)
+            self.smooth = np.convolve(np.pad(self.env, self.smooth_bins, mode="wrap"),
+                                      np.ones(2 * self.smooth_bins + 1) / (2 * self.smooth_bins + 1), mode="valid")
+            self.acc, self.acc_n = 0.0, 0
+        self.acc_bin = b
+        self.acc += y
+        self.acc_n += 1
+        e0 = self._env_at(s)
+        if e0 > self.night_w:
+            self.kbuf.append(min(max(y / e0, 0.0), 1.5))
+        trusted = s - self.first_s >= self.min_s and self.kbuf
+        out = {}
+        for h in self.horizons:
+            eh = self._env_at(s + h)
+            if trusted and e0 > self.night_w and eh > self.night_w:
+                k = sum(self.kbuf) / len(self.kbuf)
+                out[h] = max(y + self.gain * k * (eh - e0), 0.0) if self.anchor else eh * k
+            else:
+                out[h] = y
+        return out
+
+
+class ClearSkyShape:
+    """Ratio to a fixed clear-sky shape: yhat(s+h) = y(s) * f(s+h) / f(s), f = max(cos(2 pi (t - noon) / P), 0) ^ p.
+
+    Only the geometry of a day is assumed (sun peaks at local noon, no parameters are fitted). Where f(s) is
+    below `floor` (night, deep dusk and dawn) the forecast is persistence, so is any step where the
+    ratio would exceed `max_ratio`. Costs two cos() per horizon. `clearsky_adapt` (`adaptive` = 1) moves the
+    noon of the shape to the centroid of the previous day's curve (blend 0.5 per day), which follows the
+    seasonal phase shifts of the simulator; development seeds showed the fixed noon losing on seed 2."""
+    name = "clearsky_shape"
+
+    def __init__(self, horizons, cfg, params, name=None):
+        self.name = name or self.name
+        self.horizons = horizons
+        self.p = params.get("p", 1.0)
+        self.noon = params.get("noon_h", 12.0) * 3600
+        self.floor = params.get("floor", 0.05)
+        self.max_ratio = params.get("max_ratio", 2.0)
+        # adaptive=1: the noon of the shape follows the centroid of yesterday's curve (phase shifts of the season)
+        self.adaptive, self.blend = int(params.get("adaptive", 0)), params.get("blend", 0.5)
+        self.day, self.sy, self.sty = None, 0.0, 0.0
+
+    def _track(self, s: int, y: float) -> None:
+        d = int(s // DAY)
+        if self.day is not None and d != self.day:
+            if self.sy > 0:
+                self.noon += self.blend * (self.sty / self.sy - self.noon)
+            self.sy = self.sty = 0.0
+        self.day = d
+        self.sy += y
+        self.sty += y * (s % DAY)
+
+    def _f(self, s: float) -> float:
+        c = math.cos(2 * math.pi * (s - self.noon) / DAY)
+        return c ** self.p if c > 0 else 0.0
+
+    def step(self, s, y, hist, x, fh):
+        if self.adaptive:
+            self._track(s, max(y, 0.0))
+        f0 = self._f(s)
+        out = {}
+        for h in self.horizons:
+            if f0 < self.floor:
+                out[h] = y
+            else:
+                out[h] = y * min(self._f(s + h) / f0, self.max_ratio)
+        return out
+
+
 class ForgettingRidge:
     """Exponentially forgetting ridge regression (RLS in batch form), river-style learn_one/predict_one.
 
@@ -321,6 +431,34 @@ class Direct:
         return out
 
 
+class ShapeResidual(Direct):
+    """Day regime only: a linear learner on the residual of the clear-sky-shape forecast (`ClearSkyShape`).
+
+    Target for the pair (x at s-h, outcome y at s) = y - shape forecast made at s-h. At night (shape below
+    `floor`) nothing is learned and the forecast is persistence. The question is whether anything is left
+    for a learner once the deterministic ramp is removed; cloud cliffs say probably not."""
+
+    def __init__(self, name, horizons, factory, params):
+        super().__init__(name, horizons, factory)
+        self.shape = ClearSkyShape(horizons, {}, params)
+
+    def _base(self, y0, s0, s1):
+        f0 = self.shape._f(s0)
+        if f0 < self.shape.floor:
+            return y0
+        return y0 * min(self.shape._f(s1) / f0, self.shape.max_ratio)
+
+    def step(self, s, y, hist, x, fh):
+        out = {}
+        for h in self.horizons:
+            xo, yo = fh.get(s - h), hist.get(s - h)
+            if xo is not None and yo is not None and self.shape._f(s - h) >= self.shape.floor:
+                self.m[h].learn_one(xo, y - self._base(yo, s - h, s))
+            base = self._base(y, s, s + h)
+            out[h] = base + (self.m[h].predict_one(x) if self.shape._f(s) >= self.shape.floor else 0.0)
+        return out
+
+
 def _rls(lam, lam_fast=0.998):
     return lambda: ForgettingRidge(lam=lam, lam_fast=lam_fast)
 
@@ -339,6 +477,10 @@ def build(name: str, horizons, cfg, params):
     if name == "seasonal_anchor": return SeasonalAnchor(horizons, cfg, params)
     if name == "holt": return Holt(horizons, cfg, params)
     if name == "snarimax": return Snarimax(horizons, cfg, params)
+    if name == "lin_cs": return ShapeResidual(name, horizons, _lin, params)
+    if name == "clearsky_adapt": return ClearSkyShape(horizons, cfg, {"adaptive": 1, **params}, name)
+    if name == "clearsky_shape": return ClearSkyShape(horizons, cfg, params)
+    if name == "clearsky": return ClearSky(horizons, cfg, params)
     if name == "lin_sgd": return Direct(name, horizons, _lin_sgd)
     if name == "lin_pa": return Direct(name, horizons, _lin_pa(params.get("C", 0.05)))
     if name == "lin_bayes": return Direct(name, horizons, _lin_bayes)
