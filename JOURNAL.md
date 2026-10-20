@@ -378,3 +378,20 @@ seeds can resolve, and the learning rate was picked after looking at seed 1 (tun
 The informative result is the other direction: a robust loss turns -10 to -26 % into about +-2 %, which confirms the cloud cliffs, not
 the loss, were the problem, and that nothing learnable remains in the residual beyond what the geometry gives.
 **Decision.** Backlog item 4 closed. Recipe sentence added (solar). Stays `dev`.
+
+## Iteration 10 (2026-10-20): five-model test on the Air (local models for jobs T, E, N, P and honesty)
+
+**Why.** The owner asked for a comprehensive, comparable test of five candidate local models while the Air was idle. Four ran; Qwen3.5-9B is
+on disk but LM Studio never indexed it (load by key, name and path all fail with "No model found that matches model key"), so it was not tested.
+**Built.** `scripts/five_models.py` (load at context 4096 with free-memory record, speed/TTFT, honesty prompts from the llm-bench set plus a second
+hippo case, unconstrained JSON adherence for E and P, constrained P, thinking arm) around the existing `agent_eval.py` and `model_profile.py`;
+`scripts/five_models_report.py` for tables and bootstrap CIs. No locked seeds used.
+**Result (`dev`, one run each, details in `reports/five-models-2026-10-20.md`).** Triage with three examples: gpt-oss-20b 0.822 [0.78, 0.86],
+Qwen3-14B 0.797 [0.75, 0.84], Ministral 3 14B 0.524, LFM2 24B-A2B 0.492 (rules 0.630, previous best e4b 0.76). Zero-shot: Qwen3-14B 0.680, Ministral
+0.509, gpt-oss 0.234, LFM2 0.160. Speed at ctx 4096: LFM2 79 tok/s, gpt-oss 45, Qwen3-14B 15, Ministral 10. Honesty core 3 (of 3): Qwen3-14B 2.0,
+Ministral 2.0, gpt-oss 1.0, LFM2 0.0; all invent sister-vessel history. Second hippo case: only LFM2 passes. Thinking on made Qwen3-14B worse and 50x
+slower on triage (16/30 vs 21/30). Constrained decoding gives 100 % valid output for T, E, P everywhere; unconstrained gpt-oss manages only 10/30 on E.
+**Incidents.** LM Studio's server was stopped and restarted at 21:40 during the first LFM2 run (not by the harness); that run was discarded and redone.
+**Decision.** Recipe section 5 updated (`dev`). Nothing changes in the pipeline: the pre-registered C5a bar (>= 0.80 and +0.15 over rules) is met at the
+point estimate by gpt-oss-20b with examples, but that is one dev run with the examples drawn from the same pool, so it goes to the locked-seed plan, not to a verdict.
+**Open.** Qwen3.5-9B needs re-adding through the LM Studio UI; thinking on/off on honesty for the second hippo case was not run.
