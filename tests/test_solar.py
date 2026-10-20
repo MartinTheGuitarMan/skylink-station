@@ -40,3 +40,25 @@ def test_adaptive_noon_follows_a_phase_shift():
             t = d * DAY + s
             m.step(t, max(0.0, 500 * math.cos(2 * math.pi * (s - 14 * 3600) / DAY)), None, None, None)
     assert abs(m.noon - 14 * 3600) < 600
+
+
+def test_robust_residual_learners_are_registered_and_start_as_the_shape_forecast():
+    import pytest
+    for name in ("lin_cs_huber", "lin_cs_quant"):
+        m = build(name, [60], {}, {})
+        ref = build("clearsky_adapt", [60], {}, {})
+        s = 9 * 3600
+        a = m.step(s, 50.0, {}, {"a": 1.0}, {})[60]
+        assert a == pytest.approx(ref.step(s, 50.0, None, None, None)[60])  # nothing learned yet: residual is 0
+
+
+def test_scaled_robust_ignores_outliers_where_squared_loss_would_not():
+    from skylink.edge.models import ScaledRobust
+    import random
+    random.seed(0)
+    m = ScaledRobust("huber", lr=0.01)
+    for i in range(6000):
+        x = {"a": random.gauss(0, 1)}
+        y = 10.0 + (5000.0 if i % 50 == 0 else 0.0)  # constant target with a 2 % huge outlier
+        m.learn_one(x, y)
+    assert m.predict_one({"a": 0.0}) < 400.0  # the median is 10; a mean-fitter lands near 110

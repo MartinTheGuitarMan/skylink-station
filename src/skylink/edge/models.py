@@ -481,6 +481,8 @@ class ShapeResidual(Direct):
         return y0 * min(self.shape._f(s1) / f0, self.shape.max_ratio)
 
     def step(self, s, y, hist, x, fh):
+        if self.shape.adaptive:
+            self.shape._track(s, max(y, 0.0))
         out = {}
         for h in self.horizons:
             xo, yo = fh.get(s - h), hist.get(s - h)
@@ -489,6 +491,27 @@ class ShapeResidual(Direct):
             base = self._base(y, s, s + h)
             out[h] = base + (self.m[h].predict_one(x) if self.shape._f(s) >= self.shape.floor else 0.0)
         return out
+
+
+class ScaledRobust:
+    """Robust linear learner for a target of unknown scale: the target is divided by an EWMA of its own
+    absolute size (`tau` learns), so a Huber knee or a quantile loss means the same on every stream, and
+    the prediction is multiplied back. loss: "huber" (knee at 1 scale unit) or "quantile" (median)."""
+
+    def __init__(self, loss="huber", tau=2000.0, lr=0.003):
+        l = optim.losses.Huber(epsilon=1.0) if loss == "huber" else optim.losses.Quantile(alpha=0.5)
+        self.m = preprocessing.StandardScaler() | compose.FuncTransformer(_clip) | linear_model.LinearRegression(
+            optimizer=optim.SGD(lr), loss=l, l2=0.0, intercept_lr=lr / 3)
+        self.tau, self.scale, self.n = tau, 1.0, 0
+
+    def learn_one(self, x, y):
+        self.n += 1
+        a = abs(y)
+        self.scale = a if self.n == 1 else self.scale + (a - self.scale) / min(self.n, self.tau)
+        self.m.learn_one(x, y / max(self.scale, 1e-9))
+
+    def predict_one(self, x):
+        return self.m.predict_one(x) * self.scale if self.n else 0.0
 
 
 def _rls(lam, lam_fast=0.998):
@@ -510,6 +533,8 @@ def build(name: str, horizons, cfg, params):
     if name == "holt": return Holt(horizons, cfg, params)
     if name == "snarimax": return Snarimax(horizons, cfg, params)
     if name == "lin_cs": return ShapeResidual(name, horizons, _lin, params)
+    if name == "lin_cs_huber": return ShapeResidual(name, horizons, lambda: ScaledRobust("huber", lr=params.get("lr", 0.003)), {"adaptive": 1, **params})
+    if name == "lin_cs_quant": return ShapeResidual(name, horizons, lambda: ScaledRobust("quantile", lr=params.get("lr", 0.003)), {"adaptive": 1, **params})
     if name == "clearsky_adapt": return ClearSkyShape(horizons, cfg, {"adaptive": 1, **params}, name)
     if name == "clearsky_shape": return ClearSkyShape(horizons, cfg, params)
     if name == "clearsky": return ClearSky(horizons, cfg, params)
