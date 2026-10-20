@@ -155,10 +155,21 @@ def compare_windows(online: tuple, static: tuple, wins: list[tuple[float, float]
             "ci95": [float(np.percentile(boots, 2.5)), float(np.percentile(boots, 97.5))]}
 
 
-def event_window_table(series: dict, events: list[dict], static: str, warm_s: float, stop_s: float, bin_s: int,
+def event_window_table(series: dict, events: list[dict], static, warm_s: float, stop_s: float, bin_s: int,
                        window_s: float = 3600.0) -> list[dict]:
     """series: {(stream, model, horizon): (err_sum, err_n)} arrays per bin of bin_s seconds.
-    One row per stream, horizon, online model and window kind (plus kind "stationary"): the C4 numbers."""
+    One row per stream, horizon, online model, reference and window kind (plus kind "stationary"): the C4 numbers.
+    `static` is one reference model name or a list of them; the first is the pre-registered one (frozen after
+    warm-up), further ones are extra columns (e.g. a periodically retrained model). Row key "ref" names it."""
+    refs = [static] if isinstance(static, str) else list(static)
+    rows = []
+    for r in refs:
+        rows += _event_window_rows(series, events, r, warm_s, stop_s, bin_s, window_s)
+    return rows
+
+
+def _event_window_rows(series: dict, events: list[dict], static: str, warm_s: float, stop_s: float, bin_s: int,
+                       window_s: float) -> list[dict]:
     wins = change_windows(events, warm_s, stop_s, window_s)
     rows = []
     for (stream, model, h), ser in sorted(series.items()):
@@ -170,7 +181,7 @@ def event_window_table(series: dict, events: list[dict], static: str, warm_s: fl
                 continue
             r = compare_windows(ser, ref, ws, bin_s)
             if r:
-                rows.append({"stream": stream, "model": model, "horizon": h, "kind": kind, **r})
+                rows.append({"stream": stream, "model": model, "horizon": h, "kind": kind, "ref": static, **r})
         # stationary: bins outside every change window, resampled by day
         n = len(ser[0])
         free = np.ones(n, bool)
@@ -191,7 +202,7 @@ def event_window_table(series: dict, events: list[dict], static: str, warm_s: fl
         rng = np.random.default_rng(0)
         idx = rng.integers(0, len(days), (2000, len(days)))
         boots = 1 - (so[idx].sum(1) / np.maximum(no[idx].sum(1), 1)) / np.maximum(ss[idx].sum(1) / np.maximum(ns[idx].sum(1), 1), 1e-12)
-        rows.append({"stream": stream, "model": model, "horizon": h, "kind": "stationary", "events": len(days),
+        rows.append({"stream": stream, "model": model, "horizon": h, "kind": "stationary", "ref": static, "events": len(days),
                      "mae_online": float(so.sum() / no.sum()), "mae_static": float(ss.sum() / ns.sum()),
                      "reduction": float(1 - (so.sum() / no.sum()) / (ss.sum() / ns.sum())),
                      "ci95": [float(np.percentile(boots, 2.5)), float(np.percentile(boots, 97.5))]})
@@ -200,11 +211,13 @@ def event_window_table(series: dict, events: list[dict], static: str, warm_s: fl
 
 def c4_verdict(rows: list[dict]) -> list[dict]:
     """Per stream, horizon and online model: pooled change-window reduction (front, step, seasonal, drift onsets)
-    against the pre-registered rule: reduction >= 15 % there, and no more than 3 % loss in stationary bins."""
+    against the pre-registered rule: reduction >= 15 % there, and no more than 3 % loss in stationary bins.
+    One verdict per reference model ("ref"); `event_gain` = window minus stationary reduction, the part of the
+    gain that is specific to events (a stale reference gives the same gain everywhere, so it is about 0)."""
     out = []
-    keys = sorted({(r["stream"], r["model"], r["horizon"]) for r in rows})
-    for stream, model, h in keys:
-        sub = [r for r in rows if (r["stream"], r["model"], r["horizon"]) == (stream, model, h)]
+    keys = sorted({(r["stream"], r["model"], r["horizon"], r.get("ref", "")) for r in rows})
+    for stream, model, h, ref_name in keys:
+        sub = [r for r in rows if (r["stream"], r["model"], r["horizon"], r.get("ref", "")) == (stream, model, h, ref_name)]
         ch = [r for r in sub if r["kind"] in ("front", "step", "drift", "seasonal")]
         st = next((r for r in sub if r["kind"] == "stationary"), None)
         if not ch or not st:
@@ -213,25 +226,27 @@ def c4_verdict(rows: list[dict]) -> list[dict]:
         wo = sum(r["mae_online"] * r["events"] for r in ch) / sum(r["events"] for r in ch)
         ws = sum(r["mae_static"] * r["events"] for r in ch) / sum(r["events"] for r in ch)
         red = 1 - wo / ws
-        out.append({"stream": stream, "model": model, "horizon": h, "events": sum(r["events"] for r in ch),
+        out.append({"stream": stream, "model": model, "horizon": h, "ref": ref_name, "events": sum(r["events"] for r in ch),
                     "change_reduction": red, "stationary_reduction": st["reduction"],
+                    "event_gain": red - st["reduction"],
                     "pass": bool(red >= 0.15 and st["reduction"] >= -0.03)})
     return out
 
 
 def ew_table(rows: list[dict]) -> str:
-    lines = ["| stream | model | h (s) | window | n | MAE online | MAE static | reduction | 95% CI |", "|" + "---|" * 9]
+    lines = ["| stream | model | h (s) | window | ref | n | MAE online | MAE ref | reduction | 95% CI |", "|" + "---|" * 10]
     for r in rows:
-        lines.append(f"| {r['stream']} | {r['model']} | {r['horizon']} | {r['kind']} | {r['events']} | {r['mae_online']:.4g} | "
+        lines.append(f"| {r['stream']} | {r['model']} | {r['horizon']} | {r['kind']} | {r.get('ref', '')} | {r['events']} | {r['mae_online']:.4g} | "
                      f"{r['mae_static']:.4g} | {r['reduction']:+.3f} | [{r['ci95'][0]:+.3f}, {r['ci95'][1]:+.3f}] |")
     return "\n".join(lines)
 
 
 def verdict_table(rows: list[dict]) -> str:
-    lines = ["| stream | model | h (s) | change windows | reduction in windows | reduction stationary | C4 rule |", "|" + "---|" * 7]
+    lines = ["| stream | model | h (s) | ref | change windows | reduction in windows | reduction stationary | event gain | C4 rule |",
+             "|" + "---|" * 9]
     for r in rows:
-        lines.append(f"| {r['stream']} | {r['model']} | {r['horizon']} | {r['events']} | {r['change_reduction']:+.3f} | "
-                     f"{r['stationary_reduction']:+.3f} | {'pass' if r['pass'] else 'fail'} |")
+        lines.append(f"| {r['stream']} | {r['model']} | {r['horizon']} | {r.get('ref', '')} | {r['events']} | {r['change_reduction']:+.3f} | "
+                     f"{r['stationary_reduction']:+.3f} | {r['event_gain']:+.3f} | {'pass' if r['pass'] else 'fail'} |")
     return "\n".join(lines)
 
 
@@ -278,7 +293,7 @@ def main() -> None:
     ap.add_argument("--base", action="store_true", help="print the base-arm vs edge comparison (implies --by-phase)")
     ap.add_argument("--event-windows", action="store_true",
                     help="C4: MAE of each model vs the static one in the 60 min after logged regime changes, and in stationary bins")
-    ap.add_argument("--static", default="lin_lag_static")
+    ap.add_argument("--static", default="lin_lag_static", help="reference model(s), comma-separated; the first is the pre-registered one")
     ap.add_argument("--json")
     a = ap.parse_args()
     cfg = load_cfg(a.config)
@@ -289,7 +304,7 @@ def main() -> None:
         stop_s = e0 + int((a.days or cfg["run"]["duration_days"]) * 86400)
         series = influx_series(Influx(), a.run, e0, stop_s, e0)
         evs = influx_events(Influx(), a.run, e0)
-        rows = event_window_table(series, evs, a.static, a.warmup_days * 86400, stop_s - e0, 60)
+        rows = event_window_table(series, evs, a.static.split(","), a.warmup_days * 86400, stop_s - e0, 60)
         print(ew_table(rows) + "\n\n" + verdict_table(c4_verdict(rows)))
         if a.json:
             json.dump(rows, open(a.json, "w"), indent=1)

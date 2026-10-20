@@ -88,3 +88,35 @@ def test_rls_models_learn_a_trend_in_the_engine_and_start_as_persistence():
         lin = np.array(e[(name, 5)])
         assert abs(lin[0] - per[0]) < 1e-6
         assert lin[-500:].mean() < 0.5 * per[-500:].mean()
+
+
+class _Marker:
+    """Stub learner: predicts how many samples it has seen, so we can tell which model is being served."""
+    def __init__(self):
+        self.n = 0
+
+    def learn_one(self, x, y):
+        self.n += 1
+
+    def predict_one(self, x):
+        return float(self.n)
+
+
+def test_retrained_static_is_frozen_within_a_period_and_replaced_at_the_boundary():
+    from skylink.edge.models import RetrainedStatic
+    m = RetrainedStatic("r", [1], _Marker, period_s=100)
+    hist, fh = {}, {}
+    served = []
+    for s in range(350):
+        hist[s], fh[s] = 1.0, {"a": 0.0}
+        out = m.step(s, 1.0, hist, {"a": 0.0}, fh)
+        served.append(out[1] - 1.0)  # y + increment
+    assert served[50] < served[99]                           # first period: the learning shadow is served
+    assert set(served[100:200]) == {99.0}                    # period 1: frozen, trained on period 0 (99 pairs)
+    assert set(served[200:300]) == {100.0}                   # period 2: the next shadow, one whole period of pairs
+    assert set(served[300:350]) == {100.0}
+
+
+def test_retrained_static_registered_and_forecasts_in_engine():
+    m = build("lin_lag_retrain", [5], {"day_s": 1000}, {"period_s": 500})
+    assert m.period_s == 500 and m.name == "lin_lag_retrain"

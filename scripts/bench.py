@@ -24,7 +24,7 @@ ap.add_argument("--models", default=None)
 ap.add_argument("--faults", type=float, default=1.0)
 ap.add_argument("--edge", default="config/edge.toml")
 ap.add_argument("--event-windows", action="store_true", help="C4: MAE vs the static model in the 60 min after logged regime changes")
-ap.add_argument("--static", default="lin_lag_static")
+ap.add_argument("--static", default="lin_lag_static", help="reference model(s), comma-separated; the first is the pre-registered one")
 ap.add_argument("--set", action="append", default=[], help="model.<name>.<key>=<number>")
 a = ap.parse_args()
 assert a.seed < 100 or a.seed > 105, "locked seeds 101-105 are not for benches"
@@ -74,5 +74,5 @@ print(table(summarise(hours)))
 print({k: round(v, 1) for k, v in eng.stats()["cost_us_per_step"].items()})
 if a.event_windows:
     evs = [e.to_dict() for e in plan if e.stream in streams]
-    rows = event_window_table(dict(ew), evs, a.static, warm, n_s, 1)
+    rows = event_window_table(dict(ew), evs, a.static.split(","), warm, n_s, 1)
     print("\n" + ew_table(rows) + "\n\n" + verdict_table(c4_verdict(rows)))

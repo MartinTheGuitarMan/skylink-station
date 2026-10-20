@@ -59,3 +59,19 @@ def test_verdict_fails_when_online_loses_in_stationary_bins():
     series = {("temp", "online", 60): (onl_s, onl_n), ("temp", "lin_lag_static", 60): _flat(n, 1.0)}
     v = c4_verdict(event_window_table(series, events, "lin_lag_static", DAY, n, 1))
     assert v[0]["change_reduction"] > 0.15 and v[0]["stationary_reduction"] < -0.03 and not v[0]["pass"]
+
+
+def test_second_reference_is_a_separate_column_and_exposes_event_gain():
+    """Online is 30 % better than a frozen reference everywhere (stale), equal to a retrained one except in windows."""
+    n = 3 * DAY
+    events = [ev("temp", "step", DAY + 3600, DAY + 7200)]
+    onl_s, onl_n = _flat(n, 0.7)
+    onl_s = onl_s.copy()
+    onl_s[DAY + 3600:DAY + 7200] = 0.5
+    series = {("temp", "online", 60): (onl_s, onl_n), ("temp", "lin_lag_static", 60): _flat(n, 1.0),
+              ("temp", "lin_lag_retrain", 60): _flat(n, 0.7)}
+    v = c4_verdict(event_window_table(series, events, ["lin_lag_static", "lin_lag_retrain"], DAY, n, 1))
+    by = {r["ref"]: r for r in v if r["model"] == "online"}
+    assert by["lin_lag_static"]["stationary_reduction"] > 0.29 and by["lin_lag_static"]["event_gain"] < 0.3
+    assert abs(by["lin_lag_retrain"]["stationary_reduction"]) < 1e-9
+    assert abs(by["lin_lag_retrain"]["event_gain"] - (1 - 0.5 / 0.7)) < 1e-9

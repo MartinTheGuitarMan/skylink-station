@@ -431,6 +431,38 @@ class Direct:
         return out
 
 
+class RetrainedStatic(Direct):
+    """Reference for C4 that is not stale: frozen like `lin_lag_static`, but replaced every `period_s`.
+
+    A fresh shadow model learns continuously; at each period boundary it becomes the served model (frozen)
+    and a new shadow starts. The served model is therefore at most 2 periods old and was trained on the
+    period before it was served. Until the first boundary the shadow itself is served (the warm-up).
+    Event-specific gain of an online model against this reference is what is left after "static is stale"."""
+
+    def __init__(self, name, horizons, factory, period_s=DAY, stride=1):
+        super().__init__(name, horizons, factory, stride=stride)
+        self.period_s, self.served, self.k = period_s, None, 0
+
+    def recover(self) -> None:
+        super().recover()
+        self.served = None
+
+    def step(self, s, y, hist, x, fh):
+        if self.first_s is None:
+            self.first_s = s
+        k = int((s - self.first_s) // self.period_s)
+        if k != self.k:  # period boundary: the shadow is promoted and frozen, a fresh one starts
+            self.served, self.m, self.k = self.m, {h: self.factory() for h in self.horizons}, k
+        for h in self.horizons:
+            xo, yo = fh.get(s - h), hist.get(s - h)
+            if xo is not None and yo is not None:
+                self.m[h].learn_one(xo, y - yo)
+        if s % self.stride:
+            return {}
+        srv = self.served or self.m
+        return {h: y + srv[h].predict_one(x) for h in self.horizons}
+
+
 class ShapeResidual(Direct):
     """Day regime only: a linear learner on the residual of the clear-sky-shape forecast (`ClearSkyShape`).
 
@@ -488,6 +520,7 @@ def build(name: str, horizons, cfg, params):
     if name == "lin_lag_adwin": return Direct(name, horizons, _lin, adwin=True)
     if name == "lin_lag_reset": return Direct(name, horizons, _lin, reset_on_drift=True)
     if name == "lin_lag_static": return Direct(name, horizons, _lin, static_after=int(params.get("static_after", 2 * DAY)))
+    if name == "lin_lag_retrain": return RetrainedStatic(name, horizons, _lin, period_s=int(params.get("period_s", DAY)))
     # RQ2 (iteration 4): forgetting instead of reset. lam 0.9999 = memory ~3 h, 0.99999 = ~28 h.
     if name == "lin_rls": return Direct(name, horizons, _rls(params.get("lam", 0.9999)))
     if name == "lin_rls_slow": return Direct(name, horizons, _rls(params.get("lam", 0.99999)))

@@ -1,7 +1,7 @@
 # Edge forecasting service. Horizons are in seconds of event time, at a 1 s aggregation step.
 arm = "river"          # arm tag on everything this service writes (A/B arms differ here)
 day_s = 86400          # seasonal period P
-models = ["persistence", "seasonal_naive", "seasonal_anchor", "holt", "snarimax", "lin_lag", "lin_lag_static", "lin_lag_adwin", "lin_lag_reset", "hat", "lin_rls", "lin_rls_slow", "lin_rls_vn", "clearsky_shape", "clearsky_adapt"]
+models = ["persistence", "seasonal_naive", "seasonal_anchor", "holt", "snarimax", "lin_lag", "lin_lag_static", "lin_lag_adwin", "lin_lag_reset", "hat", "lin_rls", "lin_rls_slow", "lin_rls_vn", "clearsky_shape", "clearsky_adapt", "lin_lag_retrain"]
 # "arf" is the expensive one: add it for a dedicated run (config/edge-heavy.toml, later)
 
 [base]                 # arms that only see what crossed Skylink
