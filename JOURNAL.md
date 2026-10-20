@@ -309,3 +309,72 @@ temp): rules twin 0.953 of fixed MAE (CI 0.91-0.99), the scripted bad agent 1.12
 **Not run:** no live model, no new queue line. A closed-loop live run needs a model server on the Mini plus a section in the Mini's
 `nightly.sh`, which I did not touch. Read-out when it is run: *support for the agent* = C5b macro ratio <= 0.97 over all five streams, no
 stream worse than +1 %, **and** better than the rules twin; *no support* otherwise (H7 predicts |delta MAE| < 1 %).
+
+## Iteration 8 (2026-10-20): C4 / H5 verdict on the dev drift runs, and a fairer yardstick
+
+**Data.** `dev-s1-drift` and `dev-s2-drift` (7 days, 2 warm-up, all streams) finished on the Mini on 2026-10-19 and were scored there with
+`analysis --event-windows` (reports read read-only; copies of the numbers are in `reports/dev-drift-c4.md`). The Mini had already scored
+seed 2 as well. Pre-registered rule, unchanged: online beats the frozen model by >= 15 % in the 60 min after regime changes and loses
+no more than 3 % in stationary bins. Windows per stream and seed: 1-7 (many streams have 1-3 events of one kind, so every CI is wide).
+**Result (static reference = frozen after 2 days, the pre-registered one).**
+1. **Temperature, pressure, wind, vibration: no model passes at any horizon on either seed** (266 stream/model/horizon rows per seed).
+   Only solar rows pass, and only for persistence, snarimax and the clear-sky shapes at 5-60 s (seed 1) or 300 s (seed 2); none of those
+   learns anything, so that is the frozen linear model being a bad solar forecaster, not adaptation.
+2. **The learners the hypothesis is about gain nothing in windows.** Temperature seed 1, `lin_rls` window / stationary reduction: +0.017 /
+   +0.040 at 60 s, -0.214 / +0.136 at 600 s, -0.084 / +0.049 at 3600 s; seed 2: -0.082 / +0.031, -0.409 / +0.163, -0.193 / +0.143. `lin_lag`,
+   `lin_rls_slow` look the same. Online is better than the frozen model in quiet hours (it is not 2 days stale) and not better, mostly
+   worse, in the hour after an event. Wind: `lin_rls` +0.01 to +0.03 in windows and +0.01 to +0.04 stationary (both seeds), so within
+   2-4 points of each other, far from 15 %. Vibration: `lin_lag_adwin` / `lin_lag_reset` / `hat` +0.06 to +0.12 at 1 s, mostly negative at 5-120 s.
+   Pressure: nothing beyond 0.02 except detector variants that are 100-300 % worse than static.
+3. **Drift detectors made it worse**, as in iteration 1: `lin_lag_reset` and `lin_lag_adwin` lose 100-300 % at 60-600 s on temperature and pressure
+   in windows and stationary alike (the error-variance swings with the time of day; see recipe section 3). `lin_rls_vn` (soft boost) is
+   at -0.3 to -2.1 in windows at 60-600 s on temperature, +0.06 / -0.05 at 3600 s: no help either.
+**Verdict (pre-registered wording).** *C4 / H5 not supported on the dev seeds.* The rule fails everywhere that matters, and where online is
+ahead it is ahead in stationary bins by as much as or more than in windows, i.e. the frozen model is just stale. The "event-specific gain"
+(window minus stationary reduction) is negative in 89 of 120 temp/pressure/wind/vibration learner rows of the bench re-run (below). No locked seed has been used.
+
+**Yardstick (additional reported column, rule unchanged).** A frozen-after-2-days reference confounds "adaptation helps" with "the reference
+is old". Added `lin_lag_retrain` (same linear class; a fresh shadow model learns for one period, then is frozen and served for the next
+while a new shadow starts; period 1 day, so it is 1-2 days old and never learns inside an event) as a second reference, `--static
+lin_lag_static,lin_lag_retrain` in `bench.py` and `analysis`, rows carry `ref`, verdict rows carry `event_gain`. It is in the default
+model set (cost: one extra linear model per horizon plus a shadow). Tests: model freezes within a period and swaps at the boundary; two
+references are separate columns and `event_gain` isolates a gain that exists only in windows (the new test also checks the old
+single-reference path still works). 64 tests pass.
+**Bench, same scenario, seeds 1-2, 7 days, 2 warm-up, all streams** (columns in `reports/dev-drift-c4.md`). The static column reproduces the
+Mini's within about 0.01-0.05. Against the retrained reference the rule passes once in 120 learner rows (4 learners, all horizons, 2 seeds, solar excluded) (seed 2, pressure, `lin_lag` 3600 s:
+window +0.172, stationary +0.234, event gain -0.06, i.e. not event-specific; the stationary stretch is where the retrained model, which sees
+one day, is weak). Event gain >= 0.05 with a positive window gain appears in 2 of 120 rows per reference, both seed 1: `lin_rls_vn` on
+pressure and temperature at 3600 s against the frozen model (+1.4 / +0.17), which is a stationary loss, not a window win, and `lin_lag` on
+pressure at 3600 s against the retrained one (+0.06, window +0.04). So the stale-reference explanation holds: removing it does not
+uncover event-specific gain, it moves the window reductions by only 0.01-0.1 in most rows and the stationary ones up (the retrained model sees one
+day of data, so quiet-hour gains of online learners get larger, not smaller, at long horizons); event gain is negative in 101 of 120 rows.
+**Read honestly.** (a) Small N of events and 2 seeds; CIs of window reductions are wide (a single front or step can swing a row by 0.1-0.5).
+(b) The scenario's regime changes may be slow or small relative to the diurnal swing for the models to profit; this tests the model classes
+as built, not every possible adaptation mechanism. (c) Retrain period (1 day) and training length are choices; a 2-hour retrain would
+shrink the staleness further but is not a "static" model any more. (d) The C4 text says "same class with drift detection"; the detector
+variants are the worst rows. The stricter reading of the rule (detector, not forgetting) fails by a large margin as well.
+**Decision.** Recipe section 3 updated. Nothing else queued; the drift question is closed for dev seeds (`dev`). The locked-seed runs will
+report both references; the rule and the support wording stay as pre-registered.
+
+## Iteration 9 (2026-10-20): robust learner on the solar clear-sky residual (backlog 4 leftover), offline
+
+**Why.** Iteration 6 left one hole: the squared-error linear learner on the residual of the shape forecast (`lin_cs`) loses 7-25 % because
+cloud cliffs dominate the squared loss. A median or Huber loss should not chase them.
+**Built.** `ScaledRobust` (linear learner with Huber or quantile-0.5 loss on a target divided by an EWMA of its own absolute size, so the
+knee means the same on every stream) on the residual of `clearsky_adapt` (the adaptive-noon shape; `lin_cs` used the fixed noon), day
+regime only, as `lin_cs_huber` and `lin_cs_quant`. Not in the default set. 2 tests (registration; outlier-robust fit).
+**Bench (solar only, 7 days, 2 warm-up, dev seeds 1-3, skill vs persistence, 95 % CIs as printed by the bench).**
+1. Learning rate 0.003 (as `lin_lag`): Huber -1 / -8 / -21 / -60 % at 5/30/60/300 s, quantile -0.4 / -4 / -9 / -42 % (seed 1; seeds 2-3 within 5 points);
+   squared loss (`lin_cs`) -26 / -21 / -21 / -10 %. Robust loss helps at short horizons and is worse at 300 s, where the SGD residual
+   model injects a large wrong bias.
+2. Smaller steps (0.0003: quantile -4.9 % at 300 s; 0.00003: **quantile +0.6 / +1.3 / +1.7 / +1.8 %** seed 1; 0.00001 +0.3 / +1.2 / +1.8 / +2.4 %).
+   The learner is effectively switched off at that rate, so this is almost `clearsky_adapt` plus a small correction.
+3. Seeds 1-3 at 0.00003, `lin_cs_quant` vs `clearsky_adapt` (both vs persistence, 5/30/60/300 s):
+   seed 1 +0.6/+1.3/+1.7/+1.8 vs +0.1/+0.9/+1.6/+2.2; seed 2 +0.4/+1.7/+2.4/+2.9 vs +0.2/+1.5/+2.2/+3.1; seed 3 +0.6/+1.1/+1.5/+1.8 vs +0.1/+0.8/+1.3/+2.1.
+   All CIs exclude 0; Huber at the same rate is +0.1 to +1.3 at 5-60 s and -1.7 to -3.2 % at 300 s (CIs exclude 0 on seeds 1 and 3, not on 2).
+**Read honestly.** The robust quantile learner at a very small rate is 0.3-0.6 points better than `clearsky_adapt` at 5 s, 0.2-0.4 at 30 s,
+about equal at 60 s, 0.2-0.4 points worse at 300 s, at 20-25 times the per-step cost (35 us vs 1.5 us). Differences are inside what the three
+seeds can resolve, and the learning rate was picked after looking at seed 1 (tuning on dev). It is not a win: **kept out of the default set.**
+The informative result is the other direction: a robust loss turns -10 to -26 % into about +-2 %, which confirms the cloud cliffs, not
+the loss, were the problem, and that nothing learnable remains in the residual beyond what the geometry gives.
+**Decision.** Backlog item 4 closed. Recipe sentence added (solar). Stays `dev`.
