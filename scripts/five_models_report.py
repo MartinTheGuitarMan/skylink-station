@@ -9,10 +9,11 @@ import numpy as np
 
 from skylink.agent import alerts
 from skylink.agent.jobs import macro_f1
+from five_models import loops   # scripts/ is on sys.path when run as a script
 
 R, OUT = Path("runs/agent"), Path("runs/agent/five-models")
 NAMES = {"gptoss": "gpt-oss-20b MXFP4", "q14": "Qwen3 14B MLX 4-bit", "ministral": "Ministral 3 14B Q4_K_M",
-         "lfm2": "LFM2 24B-A2B MLX 4-bit"}
+         "lfm2": "LFM2 24B-A2B MLX 4-bit", "q35": "Qwen3.5 9B MLX 8-bit (thinking off)"}
 
 
 def f1ci(truth, pred, n=2000):
@@ -28,7 +29,53 @@ def triage_row(path):
     return d["truth"], list(d["preds"].values())[0], d["results"]
 
 
+def honesty_arms():
+    """(arm label, list of runs) from the raw honesty outputs. Each run: dict(prompt, answer, finish, loop, ...)."""
+    arms = {}
+    for k, nm in NAMES.items():
+        b = json.loads((OUT / k / "bench.json").read_text())
+        runs = [dict(r, prompt=p) for p, rs in b["honesty"].items() for r in rs]
+        h2 = OUT / k / "hippo2.json"
+        if h2.exists():
+            runs += [dict(r, prompt=p) for p, rs in json.loads(h2.read_text()).get("honesty", {}).items() for r in rs if p not in b["honesty"]]
+        arms[f"{nm}, honesty set"] = runs
+        for rt in ("raw_triage_nothink",):
+            if rt in b:
+                arms[f"{nm}, free-form triage (30)"] = b[rt]["rows"]
+        t = OUT / k / "think.json"
+        if t.exists():
+            td = json.loads(t.read_text())
+            if "honesty_think" in td:
+                arms[f"{nm.replace(' (thinking off)', '')}, thinking on, honesty set"] = [dict(r, prompt=p) for p, rs in td["honesty_think"].items() for r in rs]
+            if "raw_triage_think" in td:
+                arms[f"{nm.replace(' (thinking off)', '')}, thinking on, free-form triage (30)"] = td["raw_triage_think"]["rows"]
+    return arms
+
+
+def loop_tables():
+    """Runs that hit the token cap (finish_reason length) or contain a sentence/line repeated 5+ times (answer; for runs recorded after
+    2026-10-20 also the reasoning text). Constrained job T/E/N/P calls keep no raw text, so they are not counted."""
+    print("\n### Runs that hit the token cap or loop (per arm)")
+    print("| arm | runs | hit cap | repeated-line loop | cap or loop |\n|---|---|---|---|---|")
+    for arm, runs in honesty_arms().items():
+        cap = [r.get("finish") == "length" for r in runs]
+        lp = [bool(r.get("loop")) or loops(r.get("answer", "")) for r in runs]
+        print(f"| {arm} | {len(runs)} | {sum(cap)} | {sum(lp)} | {sum(a or b for a, b in zip(cap, lp))} |")
+
+
+def hippo_tables():
+    print("\n### Hippo runs, per run (answer reached = non-empty final answer with finish_reason stop)")
+    print("| model / arm | case | run | finish | thinking tokens | completion tokens | answer reached | loop |\n|---|---|---|---|---|---|---|---|")
+    for arm, runs in honesty_arms().items():
+        for r in runs:
+            if r.get("prompt") in ("halluc", "halluc2") and "reasoning_tokens" in r:
+                print(f"| {arm} | {'A' if r['prompt'] == 'halluc' else 'B'} | | {r.get('finish')} | {r.get('reasoning_tokens')} | {r.get('tokens')} | "
+                      f"{'yes' if r.get('answer') and r.get('finish') == 'stop' else 'no'} | {'yes' if r.get('loop') or loops(r.get('answer', '')) else 'no'} |")
+
+
 def main():
+    if len(sys.argv) > 1 and sys.argv[1] == "hippo":
+        return hippo_tables()
     print("### Speed and memory (context 4096)")
     print("| model | free % before load / loaded | peak LM Studio RSS GB | load s | short prompt TTFT s | tok/s | 2.3k-token prompt TTFT s |\n|---|---|---|---|---|---|---|")
     for k, nm in NAMES.items():
@@ -55,6 +102,7 @@ def main():
         print(f"| {nm} | {pr['explain']['accuracy']} | {pr['explain']['valid']} | {pr['notes']['valid']} | {b['propose_constrained']['valid']}/30 | "
               f"{b['raw_json']['E']['valid_schema']}/30 | {b['raw_json']['P']['valid_schema']}/30 |")
     print("\n### Thinking on/off, Qwen3 14B, 30 triage cases (10 per class), 3-shot, free-form JSON, no constrained decoding")
+    loop_tables()
     th = json.loads((OUT / "q14" / "think.json").read_text())
     off = json.loads((OUT / "q14" / "bench.json").read_text())["raw_triage_nothink"]["rows"]
     on = th["raw_triage_think"]["rows"]
