@@ -44,3 +44,18 @@ if [ -f config/agent-queue.txt ] && command -v ollama >/dev/null; then
     nice uv run --extra agent python scripts/agent_eval.py run --models "$models" --per-class "$per" --id "$id" --timeout 300 --until "$END"
   done < config/agent-queue.txt
 fi
+
+# ---- job P closed-loop bench, live models (C5b/C5c on dev seeds), after the agent evaluations --------
+# config/proposal-queue.txt lines: <id>|<seed>|<days>|<streams>|<name=model-spec,...>   (ollama:<model> for Ollama)
+if [ -f config/proposal-queue.txt ] && command -v ollama >/dev/null; then
+  curl -s -m 2 localhost:11434/api/version >/dev/null || { (nohup nice ollama serve >> runs/ollama.log 2>&1 &); sleep 8; }
+  while IFS="|" read -r id seed days streams models; do
+    case "$id" in ""|\#*) continue;; esac
+    [ -f "runs/agent/proposals-$id/result.json" ] && continue
+    now=$(TZ=Europe/Stockholm date +%H%M)
+    if [ "$now" -ge "${END/:/}" ] && [ "$now" -lt 2300 ]; then echo "window over (proposals)"; break; fi
+    echo "$(date "+%F %T") proposal bench $id (seed $seed, $days d, $streams, $models)"
+    nice uv run --extra agent python scripts/agent_proposals.py --seed "$seed" --days "$days" --streams "$streams" \
+        --models "$models" --out "runs/agent/proposals-$id" > "runs/agent/proposals-$id.txt" 2>&1
+  done < config/proposal-queue.txt
+fi

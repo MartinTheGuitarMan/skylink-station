@@ -66,7 +66,8 @@ def main():
     for spec in [x for x in a.models.split(",") if x]:
         name, model = spec.split("=", 1)
         arms[f"agent:{name}"] = name
-        clients[name] = MinionsClient(model, name=name) if not a.fake else None
+        backend, model = ("ollama", model[7:]) if model.startswith("ollama:") else ("lmstudio", model)
+        clients[name] = MinionsClient(model, backend=backend, name=name, timeout_s=300) if not a.fake else None
     if a.fake:
         arms["agent:fake"] = "fake"
         clients["fake"] = FakeTransport(lambda t, args: {"action": "switch", "model": "hat", "reason": "scripted"}, name="fake")
