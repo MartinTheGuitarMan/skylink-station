@@ -395,3 +395,34 @@ slower on triage (16/30 vs 21/30). Constrained decoding gives 100 % valid output
 **Decision.** Recipe section 5 updated (`dev`). Nothing changes in the pipeline: the pre-registered C5a bar (>= 0.80 and +0.15 over rules) is met at the
 point estimate by gpt-oss-20b with examples, but that is one dev run with the examples drawn from the same pool, so it goes to the locked-seed plan, not to a verdict.
 **Open.** Qwen3.5-9B needs re-adding through the LM Studio UI; thinking on/off on honesty for the second hippo case was not run.
+
+## Night 2026-10-22/23 results: job P live on the Mini (C5b/C5c, dev seeds 1-2)
+
+**Run.** `mini-p1` (seed 1) 23:00-05:10 and `mini-p2` (seed 2) 05:10-11:19: closed-loop bench, 3 days, 1 warm-up, all five streams,
+one horizon each, arms fixed (`lin_lag`), rules twin (best trailing MAE if 10 % better), gemma3:4b and qwen3:8b through Ollama.
+**Result (MAE ratio vs fixed, macro over streams; worst stream).** Seed 1: rules 0.950 (wind 1.00, C5b pass), qwen3:8b 0.984
+(pressure 1.079, fail), gemma3:4b 1.000 (never switched, fail). Seed 2: rules 0.958 (pressure 1.175, fail), qwen3:8b 0.961
+(pressure 1.168, fail), gemma3:4b 1.000. The gains are solar (0.71-0.86 for rules and qwen3:8b alike) and temperature on seed 2;
+pressure loses for every arm that switches. C5c: gemma3:4b p50 11 s, 0 invalid, 250 calls, no switch proposed at all;
+qwen3:8b p50 57-59 s, p95 154-158 s, invalid 1.2-1.6 %, 70-73 % of its switches accepted by the guardrails, 3-4 calls per run hit the 300 s timeout.
+**Read honestly.** Two dev seeds, one horizon per stream. qwen3:8b behaves like a slower copy of the rules twin, not better than it; the
+small model is a no-op. Pressure is where switching hurts (H2: nothing beyond about a minute), so a "never switch pressure" rule would
+help both arms; that is tuning on dev and stays an idea. The pre-registered wording for now: "lift not shown" (`dev`).
+**Incident.** `mini-p2` overran the window by 5 h 19 min: the bench had no deadline (the same gap as the eval script on 2026-10-17).
+Fixed in iteration 11.
+**Decision.** Recipe section 5 updated. Seed 3 queued to finish the dev triple.
+
+Night 2026-10-22/23: finding (model selection moves from `untested` to `dev`).
+
+## Iteration 11 (2026-10-23): plumbing for unattended nights and days
+
+**Why.** The owner asked for the experiment to run on its own until the goal. Three gaps: the queues were empty (nothing would have run
+tonight), job P could overrun the window, and nothing did the daytime part (write-up, next step, next queue) without a session started by hand.
+**Built.** (1) `agent_proposals.py --until HH:MM`: stops at the window end, writes `cut.json`, exits 3 (no checkpoint, so a cut bench starts
+over). (2) `nightly.sh`: one stop check for window and disk (`MIN_FREE_GB`, default 3; the Mini had 5 GB free today), `--until` passed to
+the bench, and `runs/last-night.txt` with one line per item (ok / stopped / cut / failed, nothing ran). (3) `scripts/mini-sync.sh`
+status / pull / push between the Air and the Mini (git bundles over ssh, refuses while a night job runs or when the Mini has its own commits).
+(4) `docs/daily-loop.md`: the daily pass and the road to the verdict; `CLAUDE.md` points to it and no longer says there is no remote.
+(5) A daily scheduled task on the Air runs that pass (outside the repo, set up by the owner's request).
+**Tested.** Scripted-agent bench runs to the end and, with `--until` one minute ahead, stops after 2.2 of 30 days with exit 3; stop check
+gives "window over" and "disk low" in the right cases; `mini-sync.sh status` and `pull` against the Mini.

@@ -4,9 +4,9 @@ Top five:
 1. **Base arm and backfill strategies**: arrival order vs event-time order vs ignore-late (RQ1); prerequisite for alert triage.
 2. ~~Drift mechanism that fits increment models~~ **Closed on dev seeds in iteration 8**: C4/H5 not supported; forgetting and volatility-normalised boost did not beat plain online in event windows. Locked-seed runs report both references (frozen and `lin_lag_retrain`).
 3. **Agent layer**, remaining gaps (audit 2026-10-18; client, jobs, guardrails, rules twin, async worker, call log with verdicts and C5b/C5c summaries exist):
-   a. *Large:* run jobs P, N, E live with at least two model sizes (never called live; a 4B and a 12B on the Mini, night window).
+   a. *Large:* run jobs P, N, E live with at least two model sizes. P ran live on dev seeds 1-2 (gemma3:4b, qwen3:8b; night 2026-10-22/23), seed 3 queued; N and E not yet (need 3d).
    b. *Large:* the agent in the live stack (engine serves the chosen model per arm; twin arms on the same replay). C5b is offline only for now.
-   c. *Medium:* closed-loop proposal bench on all five streams and several horizons per stream (it runs one horizon per stream; `--streams` already takes all five), plus a nightly.sh section for it (not touched: it is the Mini's script).
+   c. *Medium:* ~~nightly.sh section and all five streams~~ done (iteration 11 added the window stop). Left: several horizons per stream (one each now).
    d. *Medium:* scoring for jobs N (numbers in the stats, words) and E (cause against the truth event overlapping the window); no eval script yet.
    e. *Small:* bootstrap CI of the macro MAE ratio in `c5b_check`; mirror the call log to the Influx `agent` bucket (measurement `call`; bucket exists, nothing writes it).
    f. *Small:* the 10-min post-switch outcome (`CallLog.verdict(outcome=...)`) is never filled in by the bench.
