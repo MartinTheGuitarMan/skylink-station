@@ -11,4 +11,4 @@
 - `se.skylink.nightly`: starts `scripts/nightly.sh` at 23:00.
 The earlier per-user agent (`~/Library/LaunchAgents/se.skylink.nightly.plist`) is renamed `.disabled`.
 Remove: `sudo launchctl bootout system/se.skylink.colima system/se.skylink.nightly; sudo rm /Library/LaunchDaemons/se.skylink.*.plist`.
-Logs: `runs/colima.log`, `runs/nightly.log`.
+Logs: `runs/colima.log`, `runs/nightly.log`; one line per item of the last night in `runs/last-night.txt`.
