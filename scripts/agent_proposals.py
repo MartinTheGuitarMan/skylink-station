@@ -8,7 +8,9 @@ takes effect after its measured latency (wall seconds x speed, default 60x, in e
         --models e4b=google/gemma-4-e4b [--fake]
 """
 import argparse
+import datetime as dt
 import json
+import sys
 import time
 import tomllib
 from collections import defaultdict, deque
@@ -20,7 +22,7 @@ from skylink.agent.guard import Switchboard, Trailing
 from skylink.agent.jobs import ALLOWED_MODELS, Agent, CallLog, c5b_check, summarise_log
 from skylink.agent.minions import FakeTransport, MinionsClient
 from skylink.edge.engine import Engine
-from skylink.sim.replay import load_cfg, make_gens
+from skylink.sim.replay import load_cfg, make_gens, window_end
 from skylink.sim.streams import BLOCK_S, SPECS, to_points
 
 CANDS = ["lin_lag", "lin_lag_static", "holt", "persistence", "hat"]
@@ -47,7 +49,9 @@ def main():
     ap.add_argument("--fake", action="store_true", help="scripted agent (plumbing only)")
     ap.add_argument("--speed", type=float, default=60)
     ap.add_argument("--out", default="runs/agent/proposals")
+    ap.add_argument("--until", help="stop at this Europe/Stockholm clock time, e.g. 06:00; no result is written (exit 3)")
     a = ap.parse_args()
+    deadline = window_end(a.until)
     assert not 100 < a.seed < 106, "locked seeds are not for development"
     cfg = tomllib.load(open("config/edge.toml", "rb"))
     streams = a.streams.split(",")
@@ -121,6 +125,14 @@ def main():
     eng.hook = hook
     t0 = time.time()
     for k in range(int(a.days * 86400 // BLOCK_S)):
+        if deadline and dt.datetime.now(deadline.tzinfo) >= deadline:
+            for c in clients.values():
+                c.close()
+            done = round(k * BLOCK_S / 86400, 2)
+            (out / "cut.json").write_text(json.dumps({"until": a.until, "days_done": done, "days": a.days,
+                                                      "wall_s": round(time.time() - t0), "stats": {x: dict(v) for x, v in stats.items()}}))
+            print(f"cut at {a.until}: {done} of {a.days} days done, no result (the bench has no checkpoint)")
+            sys.exit(3)
         for st, g in gens.items():
             blk = g.block(k)
             p = to_points(SPECS[st], blk, 0, len(blk["t"]), 0)
