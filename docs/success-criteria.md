@@ -140,3 +140,14 @@ After every outage cycle, points stored in the InfluxDB raw bucket = points the 
   has |z| >= 15; everything else is a real event. Test: the 3079 edge alerts of dev seeds 1-3 not among the 200, natural mix,
   two-class macro-F1 vs the job-T rules. Prediction: >= 0.85. Exploratory (dev, rules distilled from Claude's own answers), reported
   apart from C5e's pass rule.
+- 2026-10-24 (evening): **C5e inbox run**, the daily-pass escalation loop (owner: build it). Dev seeds **11-30** are added for this
+  loop only (same rules as dev seeds; never 101-105), so every night brings alerts nobody has looked at. Each night the Mini simulates
+  one day of one such seed, labels every edge alert with the rules sent down (`escalation.distilled_rules`), and writes questions for
+  the *residue*: every wind alert, then vibration alerts with at most 2 s beyond threshold, at most 40 a night (wind first, then in
+  time order). The questions hold the job-T facts and the edge's label, never the truth. The daily pass (Claude) answers them blind;
+  the answers go back to the Mini and are applied and scored the next night against the simulator's truth.
+  Measured per night and pooled: two-class macro-F1 of the final labels vs the distilled rules alone over **all** edge alerts of the
+  night, Claude's accuracy on the escalated alerts, labels fixed / broken, questions per night, hours from question to applied answer.
+  Read after at least 5 answered nights: "residue escalation pays" if the pooled gain is ≥ **+0.02** with the paired bootstrap CI
+  (over nights' alerts) excluding 0. *H12 (guess):* gain +0.01 to +0.03; Claude stays near 0.7 on wind, where the 2-min facts
+  are thin, so most of the value comes later from rules and hindsight, not from answers.
