@@ -18,7 +18,9 @@ status)
   on_mini 'git log -1 --format="HEAD %h %cr: %s"; launchctl print system/se.skylink.nightly 2>/dev/null | grep -m1 "state ="
            pgrep -fl "nightly.sh|agent_proposals.py|agent_eval.py|skylink-sim run" | cut -c1-120 || true
            echo "-- runs/last-night.txt"; cat runs/last-night.txt 2>/dev/null || echo "(none yet)"
-           df -g . | awk "NR==2 {print \"free disk: \" \$4 \" GB\"}"'
+           df -g . | awk "NR==2 {print \"free disk: \" \$4 \" GB\" (\$4 < 20 ? \"  WARNING: under 20 GB, tell the owner\" : \"\")}"
+           PATH=/opt/homebrew/bin:$PATH docker exec skylink-influxdb-1 du -sh /var/lib/influxdb2/engine/data 2>/dev/null \
+             | awk "{print \"influx data: \" \$1 \" (raw kept forever; owner said keep it, watch it)\"}" || true'
   ;;
 pull)
   mkdir -p runs/mini/reports
