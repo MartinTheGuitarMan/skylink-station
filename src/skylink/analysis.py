@@ -257,35 +257,37 @@ def verdict_table(rows: list[dict]) -> str:
 # Choices the text leaves open (fixed here, before any C3 number was looked at): the steady state is the median of
 # the 5-min rolling MAE over the 30 min before the event; "stays" means up to the end of a 60-min look window,
 # cut at the next event on the same stream; an event that never recovers inside it is censored (counts as
-# infinitely slow in the median); an event without 30 min of scored data before it is skipped.
+# infinitely slow in the median); an event without 30 min of scored data before it is skipped. For an outage the
+# event is the whole outage: recovery counts from link-up, the steady state is the 30 min before the link went down.
 RECOVERY_KINDS = ("outage_end", "front", "step", "drift_end")
 
 
 def recovery_events(events: list[dict], outages: list[tuple[int, int]] = ()) -> list[dict]:
-    """[{stream, kind, t}] C3 event times: front and step onsets, drift ends, and link-up (outage end; stream "*"
-    means every stream, scored on the base arm)."""
-    out = [{"stream": e["stream"], "kind": e["kind"], "t": e["t0"]} for e in events if e["kind"] in ("front", "step")]
-    out += [{"stream": e["stream"], "kind": "drift_end", "t": e["t1"]} for e in events if e["kind"] == "drift"]
-    out += [{"stream": "*", "kind": "outage_end", "t": float(up)} for _, up in outages]
+    """[{stream, kind, t, pre}] C3 event times: front and step onsets, drift ends, and link-up (outage end; stream "*"
+    means every stream, scored on the base arm). `pre` is where the steady-state window ends."""
+    out = [{"stream": e["stream"], "kind": e["kind"], "t": e["t0"], "pre": e["t0"]} for e in events if e["kind"] in ("front", "step")]
+    out += [{"stream": e["stream"], "kind": "drift_end", "t": e["t1"], "pre": e["t1"]} for e in events if e["kind"] == "drift"]
+    out += [{"stream": "*", "kind": "outage_end", "t": float(up), "pre": float(down)} for down, up in outages]
     return sorted(out, key=lambda e: e["t"])
 
 
 def recovery_time(err_sum: np.ndarray, err_n: np.ndarray, t: float, bin_s: int, until: float,
-                  roll_s: int = 300, pre_s: int = 1800, tol: float = 0.25) -> float | None:
+                  roll_s: int = 300, pre_s: int = 1800, tol: float = 0.25, pre: float | None = None) -> float | None:
     """Seconds from t until the rolling MAE stays <= (1 + tol) x steady state up to `until`; inf if it never does;
-    None if there is no steady state. Resolution is one bin."""
+    None if there is no steady state. The steady state is the pre_s before `pre` (default t). Resolution is one bin."""
     k = max(1, roll_s // bin_s)
     cs, cn = np.concatenate(([0.0], np.cumsum(err_sum))), np.concatenate(([0.0], np.cumsum(err_n)))
     i0, i1 = int(t // bin_s), min(int(-(-until // bin_s)), len(err_sum))
+    p0 = int((t if pre is None else pre) // bin_s)
     def roll(i):  # trailing window of k bins ending at bin i (inclusive)
         a = max(0, i - k + 1)
         n = cn[i + 1] - cn[a]
         return (cs[i + 1] - cs[a]) / n if n > 0 else np.nan
-    pre = [roll(i) for i in range(max(0, i0 - pre_s // bin_s), i0)]
-    pre = [v for v in pre if not np.isnan(v)]
-    if len(pre) < (pre_s // bin_s) // 2 or i1 <= i0:
+    ss = [roll(i) for i in range(max(0, p0 - pre_s // bin_s), p0)]
+    ss = [v for v in ss if not np.isnan(v)]
+    if len(ss) < (pre_s // bin_s) // 2 or i1 <= i0:
         return None
-    bar = (1 + tol) * float(np.median(pre))
+    bar = (1 + tol) * float(np.median(ss))
     rec = None
     for i in range(i1 - 1, i0 - 1, -1):  # walk back from the window end while the rolling MAE stays under the bar
         v = roll(i)
@@ -310,12 +312,12 @@ def recovery_table(series: dict, rec_events: list[dict], warm_s: float, stop_s: 
             if not warm_s <= e["t"] < stop_s:
                 continue
             nxt = next((m["t"] for m in mine[j + 1:] if m["t"] > e["t"]), stop_s)
-            r = recovery_time(es, en, e["t"], bin_s, min(e["t"] + window_s, nxt, stop_s))
+            r = recovery_time(es, en, e["t"], bin_s, min(e["t"] + window_s, nxt, stop_s), pre=e.get("pre"))
             if r is not None:
                 times[e["kind"]].append(r)
         for kind, ts in sorted(times.items()):
             rows.append({"stream": stream, "model": model, "horizon": h, "kind": kind, "events": len(ts),
-                         "censored": sum(np.isinf(ts)), "median_s": float(np.median(ts))})
+                         "censored": int(np.isinf(ts).sum()), "median_s": float(np.median(ts))})
     return rows
 
 

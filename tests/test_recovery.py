@@ -36,6 +36,7 @@ def test_events_table_and_verdict():
            {"stream": "temp", "kind": "stuck", "t0": 5, "t1": 9}]
     rec = recovery_events(evs, outages=[(400 * BIN, 450 * BIN)])
     assert [(e["kind"], e["t"]) for e in rec] == [("front", 6000), ("drift_end", 18000), ("outage_end", 27000)]
+    assert rec[-1]["pre"] == 24000  # the steady state of an outage is measured before the link went down
     fast, slow = _err(600), _err(600)
     slow[0][100:130] = 3.0  # 30 bins bad after the front: 34 min
     rows = recovery_table({("temp", "fast", 60): fast, ("temp", "slow", 60): slow}, rec, warm_s=0, stop_s=600 * BIN, bin_s=BIN)
@@ -44,3 +45,11 @@ def test_events_table_and_verdict():
     v = {r["kind"]: r for r in c3_verdict(rows)}
     assert v["front"]["model"] == "fast" and v["front"]["pass"]
     assert set(v) == {"front", "drift_end", "outage_end"}
+
+
+def test_outage_steady_state_comes_from_before_the_link_went_down():
+    s, n = _err(300)
+    n[100:150] = 0  # outage: no real-time forecasts on the base arm
+    s[150:153] = 3.0
+    assert recovery_time(s, n, 150 * BIN, BIN, until=200 * BIN) is None
+    assert recovery_time(s, n, 150 * BIN, BIN, until=200 * BIN, pre=100 * BIN) == (157 - 150 + 1) * BIN
