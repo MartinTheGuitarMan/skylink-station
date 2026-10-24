@@ -14,7 +14,7 @@ Top five:
 5. **Locked-seed verdict runs** (seeds 101-105, 7 days, all streams) once 1-4 are in; needs the night window and the Mini.
 
 Next:
-1a. **Cause of the dev-s2-drift raw hole** (iteration 18, C8): about 1.3 days of event time missing in the raw bucket. Look at the Mini's logs of 2026-10-18/19 (Node-RED buffer, colima, reboots) before the locked runs; a hole there voids a locked run.
+1a. ~~**Cause of the dev-s2-drift raw hole**~~ Found: the colima VM disk (40 GB) filled; guard added. Needs room before the locked runs (owner). (iteration 18, C8): about 1.3 days of event time missing in the raw bucket. Look at the Mini's logs of 2026-10-18/19 (Node-RED buffer, colima, reboots) before the locked runs; a hole there voids a locked run.
 1b. **Job R, retrospective review (C5d)**: rules arm done on dev seed 3 (iteration 13, R1 0.943). Left: model pilot on the Air on power (Qwen3-14B, gemma-4-e4b; R2-R4, 12 windows, `lms load ... --context-length 12288`), then 40 windows with two model sizes; then ask the owner whether job R joins the locked runs.
 1d. **Influx raw data growth** (31 GB on 2026-10-24, retention forever): owner said keep it for now and watch it (daily loop, disk watch). Option when needed: delete a run's raw data after its C8 check; the simulator recreates it from the seed.
 1e. **Escalation** (`docs/escalation.md`, C5e `dev`): next, pre-register and run (a) a residue trigger (wind, short vibration excursions) with the distilled rules as the edge, on fresh cases answered blind; (b) local models with the same physics text; (c) the teacher loop (Claude's reviewed answers as the edge model's examples). Daily-pass inbox built (iteration 15), running e11-e17; read after 5 answered nights. On-call API mode costs money: ask the owner.

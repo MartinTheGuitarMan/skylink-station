@@ -571,3 +571,13 @@ drift ends, solar and vibration link-ups), C4 fails, C5 not run, C6 soft target 
 of the dev-s2-drift hole before the locked runs (a hole in a locked run would void it).
 
 Iteration 18: finding (C8 voids a dev run; verdict pipeline exists).
+
+## Incident found 2026-10-24: the colima VM disk filled and voided dev-s2-drift
+
+**Cause** (backlog 1a). InfluxDB lives on the colima VM's own 40 GB disk, not the Mac's. On 2026-10-19 at 00:57 UTC (dev-s2-drift
+running since 00:31) it logged "no space left on device", restarted at 01:26 and refused Node-RED's raw writes until about 01:57:
+about 1.3 days of event time at 60x, the hole C8 found in iteration 18. The nightly guard only looked at the Mac's disk.
+**Now.** The VM disk holds 35 of 40 GB (2.3 GB free): the next 7-day simulation would hit it again, and a locked run would be void.
+**Fix in the repo.** Simulations (the only InfluxDB writers) do not start under 6 GB free on the VM disk (`MIN_VM_FREE_GB`); the job P
+bench and the escalation inbox still run. `mini-sync.sh status` shows the VM disk. Making room (grow the VM disk, or drop old raw data)
+is the owner's call; asked.
