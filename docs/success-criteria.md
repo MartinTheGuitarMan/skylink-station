@@ -108,3 +108,28 @@ After every outage cycle, points stored in the InfluxDB raw bucket = points the 
   - *H10 (guess, before runs).* Hindsight is what helps, not the model: R1 reaches macro-F1 ≥ 0.85 (R0 is about 0.63 on job-T cases).
     No model method beats R1 by +0.05. R3 (whole window, no rules) is below R1. R4 keeps R1's accuracy within 0.01 and writes valid
     summaries ≥ 0.95 of the time with 9-14 B models, less often with ≤ 4 B models.
+- 2026-10-24: added **C5e Escalation**, requested by the owner: the small model at the edge may send a question to a "big brain"
+  ashore when the link allows; the owner named the big brain: Claude. Written before any escalation code or number exists. A separate,
+  reported claim, not part of the verdict rule in section 2; no threshold, verdict rule or hypothesis above changes.
+  - *Cases.* The 200 edge alerts (100 real event, 100 sensor fault) of the 300 balanced job-T dev cases (seed 7) that every stored model
+    run already answered. Artefact cases are left out: they arise only in the shore's view of the data, so the edge never asks about them.
+    Score: two-class macro-F1 (an artefact answer counts as wrong), bootstrap over cases (2000 resamples).
+  - *Edge.* gemma-4-e4b with three worked examples per class (stored run `air-fs3`), the 4B model that fits the edge. Second voter for
+    the quorum trigger: Jev 0.8B (`air-fs3`). Rules: the job-T rules.
+  - *Shore.* (a) Claude, answering the escalated alerts blind: questions exported without labels or ids that reveal them, in shuffled
+    order, answered in one pass from the question text, the job-T hint and the station physics in `docs/slm-backend.md`, before any
+    score is computed; Claude answers all 200 so every policy can be scored. (b) gpt-oss-20b and Qwen3-14B 3-shot (stored), as local
+    stand-ins. (c) An oracle (truth), for the upper bound of what escalation can buy.
+  - *Policies, fixed now.* P0 edge alone; P1 rules alone; P2 escalate everything; P3 escalate when edge model and rules disagree;
+    P4 escalate when the two edge voters disagree (no quorum); P5 P3 or P4. The final label is the shore's answer for an escalated
+    alert, the edge's otherwise.
+  - *Link and timing.* Questions leave only while Skylink is up (the seeded link chain of each seed); an alert raised during an outage
+    waits for link-up. Two shore modes: on call (answer 60 s after the question arrives) and daily pass (answer at the next 06:15 of
+    event time, returned at the next link-up after that). Reported: escalation rate, questions per simulated day, uplink bytes,
+    staleness (alert to final answer: median, p95).
+  - *Pass rule, per policy and shore.* "Escalation pays" if the final macro-F1 − P0's macro-F1 ≥ **+0.10** with the paired bootstrap CI
+    excluding 0, at an escalation rate ≤ **50 %**. "Big brain needed" if a policy passes with Claude and fails with both local
+    stand-ins. Otherwise "not shown", with the effect sizes.
+  - *H11 (guess, before runs).* P3 escalates 30-45 % and recovers most of the oracle gain; P4 is weaker (the 0.8B voter adds noise).
+    Claude on the escalated alerts reaches about 0.85 two-class F1, a little above gpt-oss-20b. On-call staleness is minutes, except after
+    outages (median outage 40 min); the daily pass is 12-24 h, which is fine for review and useless for alerts.
