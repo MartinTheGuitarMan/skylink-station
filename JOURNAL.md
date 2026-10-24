@@ -526,3 +526,30 @@ Air), a nightly step before the simulation queue, `mini-sync.sh answers`, daily-
 during the run. 4 tests; an end-to-end run on seed 30 (not queued) in a temporary folder: 207 alerts, 91 residue, 40 questions
 (all wind: wind fills the budget), 443 bytes each, 3 s; an echo shore applied cleanly with zero gain.
 **Decision.** First question night tonight (e11). The first answers go back in tomorrow's pass and are applied the night after.
+
+## Iteration 16 (2026-10-24): job R model pilot, Qwen3-14B (C5d, dev seed 3)
+
+**Run.** Air on power, Qwen3-14B MLX 4-bit at 16k context through mcp-minions (schema-constrained), R3 and R4 on 8 windows
+(`r-pilot-q14`; the sample's first 8 are artefact windows, 46 alerts, 19 artefacts), about 2 min per method. Report copied to
+`reports/review-pilot-q14-2026-10-24.md`.
+**Result.** R1 0.858 [0.747, 1.0]; R0 0.621. **R3** (the model reads the whole hour alone) **0.129** [0.043, 0.272]: far below the
+rules and below the 2-min rules. **R4** (rules label, model may override and writes the report) 0.778, -0.081 vs R1 [-0.185, -0.013]:
+3 overrides, all wrong; fault-stream precision 0.417 (it names streams as faulty that were not). Summary validity 1.0 for both
+(every number and alert id traceable), 15-17 s per window, 410-430 bytes per report.
+**Read honestly.** Pilot, 8 windows, one model. Already clear in direction: a 14B model reading hindsight numbers does not label
+better than four rules; as a writer it is safe on numbers (the checks pass) but not on claims (fault streams, overrides). H10's
+"R3 below R1" holds; "R4 within 0.01 of R1" does not on the pilot. gemma-4-e4b and the full 40 windows stay on the road (1c).
+**Decision.** For the recipe (after the full run): the model may word the report, never decide; fault streams come from the rules.
+
+## Iteration 17 (2026-10-24): O1, per-stream menus (first ontology experiment)
+
+**Why.** `docs/slm-backend.md` experiment 1; pre-registered (017f6e1) with H13. Air on power, one model at a time.
+**Result** (`reports/o1-menus-2026-10-24.md`). Qwen3-14B 0.797 -> 0.819, +0.022 [0.007, 0.040]: real but under the +0.03 bar.
+gemma-4-e4b 0.762 -> 0.808, +0.046 [0.022, 0.072]: **menus help**. All of the gain is on temp and pressure; the 4B model with menus
+matches the 14B model without. H13 holds.
+**Read honestly.** One run each, dev cases, examples from the same pool. The menu encodes one fact of the station (no fast real events
+on temp and pressure), seen in the data on seeds 1-2 and stated in the simulator's definitions.
+**Decision.** Recipe section 5: give small models the station's allowed causes per stream; it is worth about a model size. Next
+ontology step on the road: O2 (facts as named predicates) or backlog 1f (physics text), whichever the pass reaches first.
+
+Iteration 17: finding (O1 changes recipe section 5; H13 holds).
