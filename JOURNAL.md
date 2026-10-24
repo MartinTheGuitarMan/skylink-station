@@ -581,3 +581,8 @@ about 1.3 days of event time at 60x, the hole C8 found in iteration 18. The nigh
 **Fix in the repo.** Simulations (the only InfluxDB writers) do not start under 6 GB free on the VM disk (`MIN_VM_FREE_GB`); the job P
 bench and the escalation inbox still run. `mini-sync.sh status` shows the VM disk. Making room (grow the VM disk, or drop old raw data)
 is the owner's call; asked.
+**Done the same day (owner: "increase to 100 GB and delete data that has served its purpose").** The colima VM disk was grown to
+100 GB (stack stopped in the daytime, no job running): InfluxDB volume 99 GB, 59 GB free; dev-s3's raw temp count still equals emitted
+(6 042 618). `nightly.sh` starts colima with `--disk 100`. `scripts/drop-raw.sh` deletes the raw sensor points of runs whose purpose is
+served, keeping truth events and forecasts; for mini-smoke-1, base-smoke-1/2/3, dev-s1, dev-s2 and dev-s2-drift (void). Kept:
+dev-s1-drift and dev-s3 (inputs of the verdict dry run).

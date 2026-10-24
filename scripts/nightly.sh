@@ -12,7 +12,7 @@ set -a; . ./.env; set +a
 export INFLUX_URL=http://localhost:8086
 END="${WINDOW_END:-06:00}"
 MIN_FREE_GB="${MIN_FREE_GB:-3}"
-MIN_VM_FREE_GB="${MIN_VM_FREE_GB:-6}"   # InfluxDB lives on the colima VM disk (40 GB); it filled up on 2026-10-19 and voided dev-s2-drift
+MIN_VM_FREE_GB="${MIN_VM_FREE_GB:-6}"   # InfluxDB lives on the colima VM disk (100 GB since 2026-10-24); it filled up on 2026-10-19 and voided dev-s2-drift
 SUMMARY=runs/last-night.txt
 ran=0
 
@@ -36,7 +36,7 @@ export PATH=/opt/homebrew/bin:/usr/local/bin:$PATH
 echo "night $(TZ=Europe/Stockholm date '+%F %H:%M'), $(free_gb) GB free" > "$SUMMARY"
 trap 'note "end $(TZ=Europe/Stockholm date +%H:%M), $(free_gb) GB free"; [ $ran = 0 ] && note "nothing ran"' EXIT
 why=$(stop_reason); [ -n "$why" ] && { note "not started: $why"; echo "$why" >&2; exit 0; }
-colima status >/dev/null 2>&1 || colima start --cpu 4 --memory 6 --disk 40 --vm-type vz >/dev/null 2>&1
+colima status >/dev/null 2>&1 || colima start --cpu 4 --memory 6 --disk 100 --vm-type vz >/dev/null 2>&1
 docker compose up -d >/dev/null 2>&1 || { note "failed: docker stack not available"; echo "docker stack not available" >&2; exit 1; }
 
 # ---- escalation inbox (C5e inbox run, docs/escalation.md): seconds of work, before anything long --------
