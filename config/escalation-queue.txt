@@ -1,0 +1,8 @@
+# <night-id>|<seed 11-30>|<days>|<budget>   C5e inbox run (docs/success-criteria.md); one new night is asked per night
+e11|11|1|40
+e12|12|1|40
+e13|13|1|40
+e14|14|1|40
+e15|15|1|40
+e16|16|1|40
+e17|17|1|40

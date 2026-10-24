@@ -35,6 +35,13 @@ why=$(stop_reason); [ -n "$why" ] && { note "not started: $why"; echo "$why" >&2
 colima status >/dev/null 2>&1 || colima start --cpu 4 --memory 6 --disk 40 --vm-type vz >/dev/null 2>&1
 docker compose up -d >/dev/null 2>&1 || { note "failed: docker stack not available"; echo "docker stack not available" >&2; exit 1; }
 
+# ---- escalation inbox (C5e inbox run, docs/escalation.md): seconds of work, before anything long --------
+# Applies answers sent back by the daily pass, scores applied nights, asks the next night in config/escalation-queue.txt.
+if [ -f config/escalation-queue.txt ]; then
+  if out=$(nice uv run python scripts/escalate.py night 2>&1); then ran=1; note "escalation: $(echo "$out" | tr '\n' ';' | cut -c1-200)"
+  else note "escalation: failed ($(echo "$out" | tail -1 | cut -c1-120))"; fi
+fi
+
 while read -r run scen seed days speed edge; do
   case "$run" in ""|\#*) continue;; esac
   if [ -f "runs/$run/summary.json" ] && grep -q '"finished": true' "runs/$run/summary.json"; then continue; fi

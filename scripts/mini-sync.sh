@@ -3,6 +3,7 @@
 #
 #   scripts/mini-sync.sh status   Mini HEAD, nightly daemon, running jobs, runs/last-night.txt, free disk
 #   scripts/mini-sync.sh pull     Mini results -> runs/mini/ here (runs/ and untracked reports/), Mini's main -> refs/remotes/mini/main
+#   scripts/mini-sync.sh answers  the daily pass's escalation answers (runs/escalation/outbox/*.jsonl) -> the Mini's runs/escalation/answers/
 #   scripts/mini-sync.sh push     fast-forward the Mini's checkout to this main; refuses while a night job runs,
 #                                 when the Mini has commits this main lacks, or has uncommitted changes to tracked files
 set -eu
@@ -34,6 +35,13 @@ pull)
   if git merge-base --is-ancestor mini/main main; then echo "pulled; the Mini has no commits missing here"
   else echo "pulled; the Mini has commits missing here: git log main..mini/main"; fi
   ;;
+answers)
+  shopt -s nullglob; files=(runs/escalation/outbox/*.jsonl)
+  [ ${#files[@]} -gt 0 ] || { echo "no answers in runs/escalation/outbox"; exit 0; }
+  on_mini 'mkdir -p runs/escalation/answers'
+  rsync -a --ignore-existing "${files[@]}" "$HOST:$DIR/runs/escalation/answers/"
+  echo "sent ${#files[@]} answer file(s); the Mini applies them next night"
+  ;;
 push)
   if busy; then echo "a night job is running on the Mini; push later" >&2; exit 1; fi
   [ -z "$(on_mini 'git status --porcelain --untracked-files=no')" ] || { echo "the Mini has uncommitted changes to tracked files" >&2; exit 1; }
@@ -46,5 +54,5 @@ push)
   scp -q "$b" "$HOST:/tmp/skylink.bundle"; rm -f "$b"
   on_mini 'git fetch -q /tmp/skylink.bundle main && git merge -q --ff-only FETCH_HEAD && rm /tmp/skylink.bundle && git log -1 --format="Mini now at %h: %s"'
   ;;
-*) echo "usage: $0 status|pull|push" >&2; exit 2;;
+*) echo "usage: $0 status|pull|answers|push" >&2; exit 2;;
 esac
