@@ -155,3 +155,10 @@ After every outage cycle, points stored in the InfluxDB raw bucket = points the 
   The experiment ends when (a) the locked-seed verdict is written up, (b) three consecutive daily passes after it give no finding, and
   (c) no idea in `BACKLOG.md` is still open: each has been tested or written off with a reason. A new idea, from a result or from the
   owner, keeps the experiment running. No threshold, verdict rule or hypothesis changes.
+- 2026-10-24: **O1, per-stream menus** (first ontology experiment, `docs/slm-backend.md`). Written before the run. The job-T triage
+  call offers only the causes the station allows on the alert's stream: temp and pressure get {sensor_fault, backfill_artefact} (their
+  real processes, seasonal shift and fronts, are too slow to raise a jump or flat alert); wind, vibration and solar keep all three.
+  Same 300 balanced dev cases (seed 7), same three worked examples per class, same models: Qwen3-14B and gemma-4-e4b on the Air.
+  Compared with the stored runs without menus (`five-q14-t3`, `air-fs3`). Reported claim, not a verdict rule. "Menus help" for a
+  model if three-class macro-F1 rises by >= **+0.03** with the paired bootstrap CI excluding 0. *H13:* both models gain, the 4B
+  model more; nearly all of the gain is on temp and pressure.

@@ -51,3 +51,12 @@ def test_macro_f1_and_rules_baseline():
     assert rules_baseline(Case("2", "temp", 5, "x", "flat", {})) == "sensor_fault"
     cs = [Case(str(i), "temp", i, LABELS[i % 3], "jump") for i in range(30)]
     assert len(balanced(cs, 4)) == 12
+
+
+def test_triage_menu_limits_labels():
+    from skylink.agent.jobs import Agent
+    from skylink.agent.minions import FakeTransport
+    seen = []
+    t = FakeTransport(lambda tool, args: (seen.append(args["labels"]), {"label": "real_event"})[1])
+    o = Agent(t).triage("stream: temp", labels=["sensor_fault", "backfill_artefact"])
+    assert seen[0] == ["sensor_fault", "backfill_artefact"] and not o.valid      # a label outside the menu is rejected

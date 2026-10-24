@@ -22,6 +22,8 @@ from skylink.agent.minions import MinionsClient
 
 OUT = Path("runs/agent")
 STREAMS = ["temp", "pressure", "wind", "vibration", "solar"]
+# O1 (docs/success-criteria.md, 2026-10-24): causes the station allows per stream; temp and pressure have no fast real events
+MENUS = {"temp": ["sensor_fault", "backfill_artefact"], "pressure": ["sensor_fault", "backfill_artefact"]}
 
 
 def build(a):
@@ -79,7 +81,7 @@ def run(a):
             if deadline and dt.datetime.now(deadline.tzinfo) >= deadline:
                 print(f"{name}: window over after {i} cases, stopping", file=sys.stderr)
                 break
-            o = ag.triage(c.text(), hint)
+            o = ag.triage(c.text(), hint, MENUS.get(c.stream) if a.menus else None)
             pred.append(o.value if o.valid else None)
             bad += not o.valid
             lats.append(o.reply.latency_ms)
@@ -116,6 +118,7 @@ if __name__ == "__main__":
     r.add_argument("--id", required=True); r.add_argument("--timeout", type=int, default=120)
     r.add_argument("--fewshot", type=int, default=0, help="worked examples per class in the hint (from cases outside the eval set)")
     r.add_argument("--until", help="stop cleanly at this Europe/Stockholm clock time, e.g. 06:00")
+    r.add_argument("--menus", action="store_true", help="O1: offer only the causes the station allows on the alert's stream")
     p = sub.add_parser("report"); p.add_argument("--id", required=True)
     args = ap.parse_args()
     {"build": build, "run": run, "report": report}[args.cmd](args)
