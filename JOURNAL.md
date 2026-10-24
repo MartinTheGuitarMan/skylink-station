@@ -515,3 +515,14 @@ the big brain for now (no cost), answers come back with rules and examples. H11 
 fresh cases; local models with the same physics text; the teacher loop.
 
 Iteration 14: finding (escalation and the rules-sent-down result change recipe section 5).
+
+## Iteration 15 (2026-10-24): the daily-pass escalation inbox
+
+**Why.** The owner: build the inbox (questions from the Mini, answers and rule proposals back via mini-sync, handled in the daily
+loop). Pre-registered as the C5e inbox run (0433c48): dev seeds 11-30 added for fresh alerts, residue trigger, H12.
+**Built.** `skylink.agent.inbox` (ask / check / apply / score), `scripts/escalate.py` (night on the Mini; pending, show, check on the
+Air), a nightly step before the simulation queue, `mini-sync.sh answers`, daily-loop step 2b, queue `config/escalation-queue.txt`
+(e11-e17). Rule proposals go through the daily report and land as code via `push` after the owner's OK; the edge's rules stay frozen
+during the run. 4 tests; an end-to-end run on seed 30 (not queued) in a temporary folder: 207 alerts, 91 residue, 40 questions
+(all wind: wind fills the budget), 443 bytes each, 3 s; an echo shore applied cleanly with zero gain.
+**Decision.** First question night tonight (e11). The first answers go back in tomorrow's pass and are applied the night after.

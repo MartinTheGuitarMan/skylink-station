@@ -14,6 +14,16 @@ morning), after the night on the Mini. Do one pass, report, stop. The rules in `
    `Night YYYY-MM-DD: finding` or `no finding` (a finding is defined in the Amendments of `docs/success-criteria.md`).
    Log incidents too: an item cut at the window end, a failure, `disk low`, `nothing ran`. Update `docs/recipe.md` (tags
    honest) and `BACKLOG.md`. Copy a report into `reports/` only when it is cited.
+2b. **Answer the escalation inbox** (C5e inbox run, `docs/escalation.md`; you are the big brain). After the pull:
+   `uv run python scripts/escalate.py pending`, then for each night `uv run python scripts/escalate.py show <night>`.
+   Answer every question blind, from its facts, the station physics in `docs/slm-backend.md` and the edge's label: one JSON line
+   per question in `runs/escalation/outbox/<night>.jsonl`, `{"q", "label": real_event|sensor_fault, "kind", "why" (<= 120 chars),
+   "keep_as_example": true|false}`. Mark an example only when the facts make the case clear. Never run the simulator, open
+   `runs/mini/escalation/summary.*`, or look up truth for a night before its answers are written. Then
+   `uv run python scripts/escalate.py check <night>` (must say no errors) and send in step 5. Read `runs/mini/escalation/summary.md`
+   for nights the Mini has applied: one journal line per night; read the pooled result only after 5 nights. If the answers show a
+   pattern the rules sent down miss, propose the rule under `Behöver dig:`; the edge's rules stay frozen during the inbox run unless
+   an amendment says otherwise.
 3. **Build the next step.** Take the first open item on the road below. Small commits, one change at a time,
    `uv run pytest -q` green before each commit. Offline checks on the Air are fine if short (under 30 min, `nice`d).
 4. **Queue tonight.** Add lines to `config/queue.txt`, `config/agent-queue.txt` or `config/proposal-queue.txt`.
@@ -21,7 +31,7 @@ morning), after the night on the Mini. Do one pass, report, stop. The rules in `
    3 days, five streams, gemma3:4b + qwen3:8b about 6 h (qwen3:8b is 5 of those). A cut simulation or agent eval resumes; a cut
    job P bench starts over, so never queue one that does not fit. Do not leave a night empty when something useful fits:
    a replicate on another dev seed is better than nothing.
-5. **Ship.** Commit (one logical change each), then `scripts/mini-sync.sh push`. It refuses while a night job runs; then
+5. **Ship.** `scripts/mini-sync.sh answers` (escalation answers, any time; the Mini applies them next night). Commit (one logical change each), then `scripts/mini-sync.sh push`. It refuses while a night job runs; then
    push after 06:00 the next day, or let tomorrow's pass do it. Never push to GitHub: the owner does that.
 6. **Report** (the final message, in Swedish, short): what the night gave (1-3 lines), what was built, what runs tonight, and at
    most one line `Behöver dig:` with the default you will take if there is no answer within two passes. Only things the
