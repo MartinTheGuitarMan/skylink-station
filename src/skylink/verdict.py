@@ -4,7 +4,8 @@ Two steps (scripts/verdict.py). `collect` runs on the Mini, where InfluxDB is, a
 it pools the runs (seeds), applies the rules and writes the report. This module holds `decide`; the tests feed it synthetic runs.
 
 Choices the criteria leave open, fixed on 2026-10-24 before any locked run (dry-run on dev seeds only):
-- Models: a "River model" is anything but the baselines (persistence, seasonal_naive, seasonal_anchor). C1 and C3 take the
+- Models: a "River model" is anything but the baselines (persistence, seasonal_naive, seasonal_anchor), and it must be scored
+  in every run pooled (model sets differed between dev runs). C1 and C3 take the
   best River model (C3: decision of iteration 12). Edge arm = "river".
 - C1: pooled skill over the hourly blocks of all runs (warm-up excluded, real-time forecasts only, all phases) =
   1 - sum(err) / sum(persistence err); 95% CI by block bootstrap over those hours (1 h blocks, 2000). Mean and sd of the per-run
@@ -67,6 +68,8 @@ def c1(runs: list[dict], n_boot: int = 2000, seed: int = 0) -> dict:
     rng = np.random.default_rng(seed)
     rows = []
     for (stream, model, h), blocks in sorted(pooled.items()):
+        if len(per_run[(stream, model, h)]) < len(runs):      # a model must be scored in every run to be eligible
+            continue
         a = np.array(blocks)
         if a[:, 2].sum() <= 0:
             continue
@@ -108,12 +111,17 @@ def _median(ts: list) -> float:
 
 def _c3_rows(runs: list[dict], arm: str, kinds: tuple) -> list[dict]:
     pool: dict = defaultdict(list)
+    seen: dict = defaultdict(set)
+    have = sum(1 for r in runs if r["c3"].get(arm))
     for r in runs:
         for row in r["c3"].get(arm, []):
             if row["kind"] in kinds and river(row["model"]):
                 pool[(row["stream"], row["horizon"], row["kind"], row["model"])] += row["times_s"]
+                seen[row["model"]].add(r["run"])
     best: dict = {}
     for (stream, h, kind, model), ts in pool.items():
+        if len(seen[model]) < have:                            # a model must be in every run that has this arm
+            continue
         m = _median(ts)
         k = (stream, h, kind)
         if k not in best or m < best[k]["median_s"]:

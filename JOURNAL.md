@@ -553,3 +553,21 @@ on temp and pressure), seen in the data on seeds 1-2 and stated in the simulator
 ontology step on the road: O2 (facts as named predicates) or backlog 1f (physics text), whichever the pass reaches first.
 
 Iteration 17: finding (O1 changes recipe section 5; H13 holds).
+
+## Iteration 18 (2026-10-24): verdict pipeline (road step 4), dry run on dev
+
+**Why.** The owner: do road step 4 now, it is what every later step waits on.
+**Built.** `skylink.verdict` (pure: C1-C8 rules, pooling over runs, the section-2 lines, report) and `scripts/verdict.py`
+(`collect` on the Mini from InfluxDB, one JSON per run; `decide` anywhere). Every choice the criteria leave open is written in the
+module's docstring, fixed before any locked run. C3 rows now keep per-event times so seeds can be pooled. 6 tests.
+**Dry run** (`dev-dry`: dev-s1-drift, dev-s2-drift, dev-s3; collect 15 min on the Mini; `reports/verdict-dev-dry.md`). It runs end to end.
+It found two things: (1) model sets differ between dev runs, so a model in one run only was pooled as if seen in all; fixed (a model
+must be scored in every pooled run). (2) **C8 voids dev-s2-drift**: raw points are about 18 % short on every stream, a hole from about
+2026-01-02 12:00 to 01-04 05:00 of event time (counts per 12 h in the raw bucket). Never checked by hand on that run. Its earlier C3
+and C4 numbers came from the forecasts bucket and may carry the same gap; they were dev readings and are not re-done now.
+Dev reading on the two good runs (not a verdict): C1 holds (temp, vibration, wind), C2 not measured, C3 fails (pressure steps and
+drift ends, solar and vibration link-ups), C4 fails, C5 not run, C6 soft target met, C7 not run.
+**Decision.** Road step 4 done. Two inputs added before the locked runs: a 1x C2 run and a C7 replicate. Backlog: find the cause
+of the dev-s2-drift hole before the locked runs (a hole in a locked run would void it).
+
+Iteration 18: finding (C8 voids a dev run; verdict pipeline exists).

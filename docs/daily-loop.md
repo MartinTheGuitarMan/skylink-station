@@ -49,8 +49,10 @@ morning), after the night on the Mini. Do one pass, report, stop. The rules in `
    (`--base`) and C3 recovery (`--recovery`). The verdict pipeline must take C3's best River model only and add the edge control.
 3. **Backlog 3d, scoring for jobs N and E**, then a live night for them with two model sizes (3a). Backlog 3b (the agent in the
    live stack) is not needed for the verdict: C5b is defined on the same replayed data, which the closed-loop bench provides.
-4. **Verdict pipeline.** One script that turns the locked run ids into every C1-C8 number and the verdict lines of
-   section 2 of `docs/success-criteria.md`. Dry-run it end to end on dev seeds and commit before any locked run.
+4. ~~**Verdict pipeline.**~~ Built and dry-run on dev (iteration 18): `scripts/verdict.py collect` on the Mini (about 5 min a
+   run), `decide` anywhere, `reports/verdict-<label>.md`. Before the locked runs it still needs two inputs the dry run showed missing:
+   (a) a **C2 run at 1x** on the Mini (dev seed, all five streams, about 2 h of the night window; then `collect --c2-run`), and
+   (b) a **C7 replicate**: run one locked seed twice (both logged) and pass `--replicate`.
 5. **Locked runs.** Seeds 101-105, 7 days, all five streams, `config/scenario-default.toml` (about two nights), then C5a/C5b on
    locked cases. Default unless the owner says otherwise: job R (C5d) and escalation (C5e) are scored on the locked runs too,
    as reported claims outside the verdict rule. Log every locked run in the journal. Write `reports/verdict.md` with the final form of the recipe.

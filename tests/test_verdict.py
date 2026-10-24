@@ -73,3 +73,10 @@ def test_c5_from_triage_and_bench():
     assert c["c5a"]["holds"] and c["c5a"]["best"] == "gptoss"
     assert c["c5b"]["holds"] and c["c5c"]["holds"] and c["layer_justified"]
     assert not V.c5(None, None)["layer_justified"]
+
+
+def test_a_model_missing_from_a_run_is_not_eligible():
+    a, b = _run("a", {"temp": 0.3}), _run("b", {"temp": 0.3}, seed=2)
+    a["hours"].append(["temp", "river", "only_in_a", 60, "normal", "1", 0, 100, 10.0, 100.0])
+    rows = V.c1([a, b])["rows"]
+    assert {r["model"] for r in rows} == {"lin_lag"}
