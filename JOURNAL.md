@@ -494,3 +494,24 @@ tie; the live question is R4 (rules label, model writes, checked in code). One s
 **Not run: the model arms.** The Air was on battery all afternoon (the local-model rule: no model on battery). Ready to run when it is on
 power: Qwen3-14B and gemma-4-e4b, 12 windows, R2-R4, under 30 min (context >= 12288 needed: the largest window is about 19k characters).
 **Decision.** Recipe section 5 updated (`dev`, rules only). Model pilot next time the Air is plugged in; the full 40-window run needs a slot.
+
+## Iteration 14 (2026-10-24): escalation to Claude (C5e), dev
+
+**Why.** The owner's idea: the small model at the edge may escalate questions to a big brain when the link allows; the big brain is
+Claude. Pre-registered as C5e (8ba2a52) before code or numbers.
+**Built.** `skylink.agent.escalation` (policies P0-P5, link timing from each seed's chain, on-call and daily-pass shore, two-class
+scoring with bootstrap) and `scripts/escalation_eval.py`, on stored runs (no new inference). Claude answered the 200 edge questions
+blind (renamed, shuffled, no labels), fingerprinted before scoring. 5 tests.
+**Result** (`reports/escalation-dev-2026-10-24.md`). Alone: Claude 0.935 [0.90, 0.97], Qwen3-14B 0.761, gpt-oss-20b 0.750, edge
+gemma-4-e4b 0.707, job-T rules 0.510. Escalate all to Claude: +0.228 at 100 %, about 156 questions (62 kB) a day. Within the 50 % cap,
+best P4/P5 +0.074 [0.022, 0.126] at 36-38 %. Pass rule: **not shown**. With a perfect shore the triggers buy +0.055 (P3) and
++0.108 (P4): the trigger is the limit, not the shore. On call: answer back in 3 min median, 42 min p95; daily pass 12.8 h / 23 h.
+**Follow-up, rules sent down** (pre-registered fa0e6cc, after the scores, before the run): Claude's answers are five rules; as code
+they score 0.912 [0.901, 0.923] on the 3079 other edge alerts (job-T rules 0.645). Left over: wind both ways, vibration faults.
+**Read honestly.** Claude had the station physics text, the local models three examples, so the gap mixes model and knowledge. One
+threshold (wind z >= 10) was seen on seeds 1-2 in iteration 13; seed 3 alone scores the same (0.931). Dev only.
+**Decision.** Design in `docs/escalation.md`: decide locally, escalate the residue, questions ahead of the backfill, the daily pass as
+the big brain for now (no cost), answers come back with rules and examples. H11 partly wrong (see report). Next: a residue trigger on
+fresh cases; local models with the same physics text; the teacher loop.
+
+Iteration 14: finding (escalation and the rules-sent-down result change recipe section 5).

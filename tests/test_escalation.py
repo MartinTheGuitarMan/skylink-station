@@ -36,3 +36,13 @@ def test_policies_and_final_labels():
 def test_two_class_f1_counts_other_labels_wrong():
     assert E.f1(["real_event", "sensor_fault"], ["real_event", "sensor_fault"]) == 1.0
     assert E.f1(["real_event", "sensor_fault"], ["real_event", "backfill_artefact"]) < 1.0
+
+
+def test_distilled_rules():
+    ctx = {"onset_z": 9.0, "peak_z_next_2min": 9.0, "seconds_beyond_threshold_in_2min": 3, "flat_fraction_next_2min": 0.0}
+    assert E.distilled_rules("temp", "jump", ctx) == "sensor_fault"
+    assert E.distilled_rules("wind", "jump", ctx) == "real_event"
+    assert E.distilled_rules("wind", "jump", {**ctx, "flat_fraction_next_2min": 0.6}) == "sensor_fault"
+    assert E.distilled_rules("vibration", "jump", {**ctx, "onset_z": -8.5, "seconds_beyond_threshold_in_2min": 90}) == "sensor_fault"
+    assert E.distilled_rules("solar", "jump", {**ctx, "onset_z": 150.0, "seconds_beyond_threshold_in_2min": 1}) == "sensor_fault"
+    assert E.distilled_rules("solar", "flat", ctx) == "sensor_fault"

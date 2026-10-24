@@ -1,0 +1,802 @@
+{
+"Q001": {
+"case": "s1-wind-184180",
+"answer": "sensor_fault"
+},
+"Q002": {
+"case": "s2-solar-464520",
+"answer": "real_event"
+},
+"Q003": {
+"case": "s2-wind-442093",
+"answer": "sensor_fault"
+},
+"Q004": {
+"case": "s1-pressure-143607",
+"answer": "sensor_fault"
+},
+"Q005": {
+"case": "s2-solar-401906",
+"answer": "real_event"
+},
+"Q006": {
+"case": "s1-wind-66060",
+"answer": "sensor_fault"
+},
+"Q007": {
+"case": "s1-solar-132633",
+"answer": "real_event"
+},
+"Q008": {
+"case": "s3-vibration-169485",
+"answer": "real_event"
+},
+"Q009": {
+"case": "s1-wind-536596",
+"answer": "sensor_fault"
+},
+"Q010": {
+"case": "s1-vibration-22614",
+"answer": "real_event"
+},
+"Q011": {
+"case": "s1-vibration-499297",
+"answer": "real_event"
+},
+"Q012": {
+"case": "s2-wind-544461",
+"answer": "real_event"
+},
+"Q013": {
+"case": "s1-wind-134341",
+"answer": "sensor_fault"
+},
+"Q014": {
+"case": "s3-vibration-448279",
+"answer": "real_event"
+},
+"Q015": {
+"case": "s1-solar-243457",
+"answer": "sensor_fault"
+},
+"Q016": {
+"case": "s3-vibration-485675",
+"answer": "real_event"
+},
+"Q017": {
+"case": "s1-pressure-497756",
+"answer": "sensor_fault"
+},
+"Q018": {
+"case": "s3-wind-268321",
+"answer": "sensor_fault"
+},
+"Q019": {
+"case": "s3-vibration-63817",
+"answer": "sensor_fault"
+},
+"Q020": {
+"case": "s2-wind-123454",
+"answer": "real_event"
+},
+"Q021": {
+"case": "s3-vibration-427441",
+"answer": "real_event"
+},
+"Q022": {
+"case": "s3-solar-405891",
+"answer": "sensor_fault"
+},
+"Q023": {
+"case": "s2-vibration-584370",
+"answer": "real_event"
+},
+"Q024": {
+"case": "s1-wind-493096",
+"answer": "sensor_fault"
+},
+"Q025": {
+"case": "s2-vibration-435547",
+"answer": "sensor_fault"
+},
+"Q026": {
+"case": "s3-wind-349883",
+"answer": "real_event"
+},
+"Q027": {
+"case": "s1-vibration-82534",
+"answer": "real_event"
+},
+"Q028": {
+"case": "s1-temp-103178",
+"answer": "sensor_fault"
+},
+"Q029": {
+"case": "s2-solar-43381",
+"answer": "real_event"
+},
+"Q030": {
+"case": "s1-vibration-221702",
+"answer": "real_event"
+},
+"Q031": {
+"case": "s3-pressure-524497",
+"answer": "sensor_fault"
+},
+"Q032": {
+"case": "s1-wind-415179",
+"answer": "sensor_fault"
+},
+"Q033": {
+"case": "s3-wind-323232",
+"answer": "real_event"
+},
+"Q034": {
+"case": "s1-pressure-244965",
+"answer": "sensor_fault"
+},
+"Q035": {
+"case": "s3-vibration-479995",
+"answer": "sensor_fault"
+},
+"Q036": {
+"case": "s3-solar-131268",
+"answer": "sensor_fault"
+},
+"Q037": {
+"case": "s2-pressure-193624",
+"answer": "sensor_fault"
+},
+"Q038": {
+"case": "s1-vibration-231022",
+"answer": "real_event"
+},
+"Q039": {
+"case": "s2-wind-259968",
+"answer": "sensor_fault"
+},
+"Q040": {
+"case": "s2-vibration-294671",
+"answer": "real_event"
+},
+"Q041": {
+"case": "s3-vibration-510083",
+"answer": "real_event"
+},
+"Q042": {
+"case": "s1-wind-112182",
+"answer": "sensor_fault"
+},
+"Q043": {
+"case": "s3-wind-148976",
+"answer": "real_event"
+},
+"Q044": {
+"case": "s2-wind-585960",
+"answer": "real_event"
+},
+"Q045": {
+"case": "s1-vibration-401786",
+"answer": "real_event"
+},
+"Q046": {
+"case": "s2-vibration-359494",
+"answer": "real_event"
+},
+"Q047": {
+"case": "s2-solar-569154",
+"answer": "sensor_fault"
+},
+"Q048": {
+"case": "s1-vibration-61394",
+"answer": "real_event"
+},
+"Q049": {
+"case": "s3-vibration-457863",
+"answer": "real_event"
+},
+"Q050": {
+"case": "s3-vibration-398523",
+"answer": "real_event"
+},
+"Q051": {
+"case": "s1-temp-54613",
+"answer": "sensor_fault"
+},
+"Q052": {
+"case": "s3-wind-447190",
+"answer": "real_event"
+},
+"Q053": {
+"case": "s3-temp-345721",
+"answer": "sensor_fault"
+},
+"Q054": {
+"case": "s3-vibration-212476",
+"answer": "real_event"
+},
+"Q055": {
+"case": "s2-vibration-399049",
+"answer": "sensor_fault"
+},
+"Q056": {
+"case": "s1-wind-203161",
+"answer": "real_event"
+},
+"Q057": {
+"case": "s2-wind-290892",
+"answer": "sensor_fault"
+},
+"Q058": {
+"case": "s1-vibration-516592",
+"answer": "real_event"
+},
+"Q059": {
+"case": "s2-vibration-577045",
+"answer": "real_event"
+},
+"Q060": {
+"case": "s2-temp-397433",
+"answer": "sensor_fault"
+},
+"Q061": {
+"case": "s3-wind-376755",
+"answer": "real_event"
+},
+"Q062": {
+"case": "s3-vibration-371358",
+"answer": "sensor_fault"
+},
+"Q063": {
+"case": "s1-vibration-262586",
+"answer": "real_event"
+},
+"Q064": {
+"case": "s1-solar-579661",
+"answer": "sensor_fault"
+},
+"Q065": {
+"case": "s1-vibration-375263",
+"answer": "real_event"
+},
+"Q066": {
+"case": "s3-temp-404823",
+"answer": "sensor_fault"
+},
+"Q067": {
+"case": "s3-solar-50921",
+"answer": "real_event"
+},
+"Q068": {
+"case": "s1-wind-338610",
+"answer": "sensor_fault"
+},
+"Q069": {
+"case": "s1-pressure-551187",
+"answer": "sensor_fault"
+},
+"Q070": {
+"case": "s1-temp-554839",
+"answer": "sensor_fault"
+},
+"Q071": {
+"case": "s3-vibration-97218",
+"answer": "real_event"
+},
+"Q072": {
+"case": "s1-wind-116968",
+"answer": "sensor_fault"
+},
+"Q073": {
+"case": "s2-wind-7095",
+"answer": "real_event"
+},
+"Q074": {
+"case": "s2-vibration-438675",
+"answer": "real_event"
+},
+"Q075": {
+"case": "s3-vibration-333305",
+"answer": "real_event"
+},
+"Q076": {
+"case": "s2-vibration-442863",
+"answer": "real_event"
+},
+"Q077": {
+"case": "s1-vibration-522933",
+"answer": "real_event"
+},
+"Q078": {
+"case": "s3-temp-541206",
+"answer": "sensor_fault"
+},
+"Q079": {
+"case": "s2-wind-386013",
+"answer": "real_event"
+},
+"Q080": {
+"case": "s2-temp-94332",
+"answer": "sensor_fault"
+},
+"Q081": {
+"case": "s3-solar-495654",
+"answer": "real_event"
+},
+"Q082": {
+"case": "s1-pressure-269015",
+"answer": "sensor_fault"
+},
+"Q083": {
+"case": "s2-temp-501449",
+"answer": "sensor_fault"
+},
+"Q084": {
+"case": "s1-vibration-456050",
+"answer": "real_event"
+},
+"Q085": {
+"case": "s1-wind-117648",
+"answer": "sensor_fault"
+},
+"Q086": {
+"case": "s3-vibration-372627",
+"answer": "real_event"
+},
+"Q087": {
+"case": "s2-vibration-280857",
+"answer": "sensor_fault"
+},
+"Q088": {
+"case": "s2-wind-328927",
+"answer": "sensor_fault"
+},
+"Q089": {
+"case": "s3-vibration-247221",
+"answer": "real_event"
+},
+"Q090": {
+"case": "s2-vibration-9930",
+"answer": "real_event"
+},
+"Q091": {
+"case": "s3-wind-322035",
+"answer": "real_event"
+},
+"Q092": {
+"case": "s1-wind-339043",
+"answer": "sensor_fault"
+},
+"Q093": {
+"case": "s3-vibration-158997",
+"answer": "real_event"
+},
+"Q094": {
+"case": "s2-vibration-368069",
+"answer": "real_event"
+},
+"Q095": {
+"case": "s3-solar-594181",
+"answer": "sensor_fault"
+},
+"Q096": {
+"case": "s2-wind-237513",
+"answer": "real_event"
+},
+"Q097": {
+"case": "s2-vibration-603515",
+"answer": "real_event"
+},
+"Q098": {
+"case": "s3-vibration-177108",
+"answer": "real_event"
+},
+"Q099": {
+"case": "s1-wind-366058",
+"answer": "sensor_fault"
+},
+"Q100": {
+"case": "s2-vibration-105160",
+"answer": "real_event"
+},
+"Q101": {
+"case": "s1-wind-132269",
+"answer": "sensor_fault"
+},
+"Q102": {
+"case": "s3-vibration-87983",
+"answer": "real_event"
+},
+"Q103": {
+"case": "s3-vibration-106112",
+"answer": "real_event"
+},
+"Q104": {
+"case": "s3-solar-382536",
+"answer": "sensor_fault"
+},
+"Q105": {
+"case": "s2-wind-283304",
+"answer": "sensor_fault"
+},
+"Q106": {
+"case": "s1-vibration-129256",
+"answer": "real_event"
+},
+"Q107": {
+"case": "s3-solar-558528",
+"answer": "real_event"
+},
+"Q108": {
+"case": "s2-wind-186162",
+"answer": "sensor_fault"
+},
+"Q109": {
+"case": "s1-temp-367504",
+"answer": "sensor_fault"
+},
+"Q110": {
+"case": "s1-wind-541797",
+"answer": "real_event"
+},
+"Q111": {
+"case": "s1-vibration-393326",
+"answer": "real_event"
+},
+"Q112": {
+"case": "s1-wind-352072",
+"answer": "sensor_fault"
+},
+"Q113": {
+"case": "s3-temp-29967",
+"answer": "sensor_fault"
+},
+"Q114": {
+"case": "s1-vibration-233750",
+"answer": "real_event"
+},
+"Q115": {
+"case": "s1-vibration-269523",
+"answer": "real_event"
+},
+"Q116": {
+"case": "s3-solar-296056",
+"answer": "real_event"
+},
+"Q117": {
+"case": "s3-vibration-97866",
+"answer": "real_event"
+},
+"Q118": {
+"case": "s1-solar-198410",
+"answer": "real_event"
+},
+"Q119": {
+"case": "s1-vibration-580282",
+"answer": "real_event"
+},
+"Q120": {
+"case": "s2-vibration-307629",
+"answer": "real_event"
+},
+"Q121": {
+"case": "s3-vibration-446964",
+"answer": "sensor_fault"
+},
+"Q122": {
+"case": "s1-solar-184081",
+"answer": "sensor_fault"
+},
+"Q123": {
+"case": "s3-vibration-234091",
+"answer": "real_event"
+},
+"Q124": {
+"case": "s3-pressure-534222",
+"answer": "sensor_fault"
+},
+"Q125": {
+"case": "s3-vibration-92263",
+"answer": "real_event"
+},
+"Q126": {
+"case": "s2-vibration-567526",
+"answer": "real_event"
+},
+"Q127": {
+"case": "s1-vibration-59963",
+"answer": "real_event"
+},
+"Q128": {
+"case": "s1-temp-271425",
+"answer": "sensor_fault"
+},
+"Q129": {
+"case": "s3-solar-290835",
+"answer": "real_event"
+},
+"Q130": {
+"case": "s1-vibration-507557",
+"answer": "real_event"
+},
+"Q131": {
+"case": "s2-solar-574449",
+"answer": "sensor_fault"
+},
+"Q132": {
+"case": "s1-wind-422917",
+"answer": "sensor_fault"
+},
+"Q133": {
+"case": "s1-temp-473452",
+"answer": "sensor_fault"
+},
+"Q134": {
+"case": "s1-temp-12284",
+"answer": "sensor_fault"
+},
+"Q135": {
+"case": "s3-vibration-187281",
+"answer": "real_event"
+},
+"Q136": {
+"case": "s3-temp-390572",
+"answer": "sensor_fault"
+},
+"Q137": {
+"case": "s2-vibration-495553",
+"answer": "sensor_fault"
+},
+"Q138": {
+"case": "s1-wind-493812",
+"answer": "sensor_fault"
+},
+"Q139": {
+"case": "s2-vibration-405414",
+"answer": "real_event"
+},
+"Q140": {
+"case": "s2-vibration-111878",
+"answer": "real_event"
+},
+"Q141": {
+"case": "s3-vibration-183678",
+"answer": "real_event"
+},
+"Q142": {
+"case": "s1-vibration-206742",
+"answer": "real_event"
+},
+"Q143": {
+"case": "s3-solar-98174",
+"answer": "sensor_fault"
+},
+"Q144": {
+"case": "s3-solar-396188",
+"answer": "sensor_fault"
+},
+"Q145": {
+"case": "s1-vibration-509064",
+"answer": "real_event"
+},
+"Q146": {
+"case": "s1-wind-476786",
+"answer": "sensor_fault"
+},
+"Q147": {
+"case": "s3-vibration-472681",
+"answer": "real_event"
+},
+"Q148": {
+"case": "s1-wind-489688",
+"answer": "sensor_fault"
+},
+"Q149": {
+"case": "s1-wind-366933",
+"answer": "sensor_fault"
+},
+"Q150": {
+"case": "s3-pressure-61962",
+"answer": "sensor_fault"
+},
+"Q151": {
+"case": "s2-solar-409338",
+"answer": "real_event"
+},
+"Q152": {
+"case": "s1-temp-565896",
+"answer": "sensor_fault"
+},
+"Q153": {
+"case": "s1-wind-131865",
+"answer": "real_event"
+},
+"Q154": {
+"case": "s3-vibration-562094",
+"answer": "real_event"
+},
+"Q155": {
+"case": "s2-vibration-131309",
+"answer": "real_event"
+},
+"Q156": {
+"case": "s1-wind-111611",
+"answer": "sensor_fault"
+},
+"Q157": {
+"case": "s3-wind-309155",
+"answer": "sensor_fault"
+},
+"Q158": {
+"case": "s1-wind-135655",
+"answer": "real_event"
+},
+"Q159": {
+"case": "s2-temp-486113",
+"answer": "sensor_fault"
+},
+"Q160": {
+"case": "s1-wind-416971",
+"answer": "sensor_fault"
+},
+"Q161": {
+"case": "s1-vibration-91572",
+"answer": "real_event"
+},
+"Q162": {
+"case": "s3-solar-577199",
+"answer": "real_event"
+},
+"Q163": {
+"case": "s1-wind-510332",
+"answer": "sensor_fault"
+},
+"Q164": {
+"case": "s3-vibration-564016",
+"answer": "real_event"
+},
+"Q165": {
+"case": "s1-vibration-238255",
+"answer": "real_event"
+},
+"Q166": {
+"case": "s1-wind-511162",
+"answer": "sensor_fault"
+},
+"Q167": {
+"case": "s2-temp-84178",
+"answer": "sensor_fault"
+},
+"Q168": {
+"case": "s1-wind-330686",
+"answer": "sensor_fault"
+},
+"Q169": {
+"case": "s1-vibration-141481",
+"answer": "real_event"
+},
+"Q170": {
+"case": "s1-vibration-221346",
+"answer": "real_event"
+},
+"Q171": {
+"case": "s2-vibration-358238",
+"answer": "real_event"
+},
+"Q172": {
+"case": "s2-vibration-513943",
+"answer": "real_event"
+},
+"Q173": {
+"case": "s3-vibration-520749",
+"answer": "real_event"
+},
+"Q174": {
+"case": "s1-wind-236157",
+"answer": "real_event"
+},
+"Q175": {
+"case": "s1-wind-344094",
+"answer": "sensor_fault"
+},
+"Q176": {
+"case": "s2-temp-283796",
+"answer": "sensor_fault"
+},
+"Q177": {
+"case": "s1-wind-422550",
+"answer": "sensor_fault"
+},
+"Q178": {
+"case": "s2-wind-373021",
+"answer": "real_event"
+},
+"Q179": {
+"case": "s1-solar-117437",
+"answer": "real_event"
+},
+"Q180": {
+"case": "s3-solar-490644",
+"answer": "real_event"
+},
+"Q181": {
+"case": "s1-vibration-506078",
+"answer": "sensor_fault"
+},
+"Q182": {
+"case": "s1-vibration-304958",
+"answer": "real_event"
+},
+"Q183": {
+"case": "s2-solar-91027",
+"answer": "sensor_fault"
+},
+"Q184": {
+"case": "s2-vibration-93805",
+"answer": "real_event"
+},
+"Q185": {
+"case": "s2-vibration-53918",
+"answer": "real_event"
+},
+"Q186": {
+"case": "s1-vibration-400321",
+"answer": "real_event"
+},
+"Q187": {
+"case": "s3-solar-501204",
+"answer": "real_event"
+},
+"Q188": {
+"case": "s3-vibration-204297",
+"answer": "sensor_fault"
+},
+"Q189": {
+"case": "s3-vibration-523053",
+"answer": "real_event"
+},
+"Q190": {
+"case": "s1-wind-515518",
+"answer": "real_event"
+},
+"Q191": {
+"case": "s3-vibration-473224",
+"answer": "real_event"
+},
+"Q192": {
+"case": "s3-vibration-158117",
+"answer": "real_event"
+},
+"Q193": {
+"case": "s2-temp-501149",
+"answer": "sensor_fault"
+},
+"Q194": {
+"case": "s2-temp-94032",
+"answer": "sensor_fault"
+},
+"Q195": {
+"case": "s2-vibration-85563",
+"answer": "real_event"
+},
+"Q196": {
+"case": "s3-vibration-543377",
+"answer": "real_event"
+},
+"Q197": {
+"case": "s1-vibration-450898",
+"answer": "sensor_fault"
+},
+"Q198": {
+"case": "s1-wind-494706",
+"answer": "sensor_fault"
+},
+"Q199": {
+"case": "s2-solar-569754",
+"answer": "sensor_fault"
+},
+"Q200": {
+"case": "s1-vibration-515330",
+"answer": "real_event"
+}
+}

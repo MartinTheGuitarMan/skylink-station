@@ -101,3 +101,17 @@ def boot_f1(truth, pred, n=2000, seed=0):
     t, p = np.array(truth, dtype=object), np.array(pred, dtype=object)
     out = [f1(list(t[i]), list(p[i])) for i in (rng.integers(0, len(t), len(t)) for _ in range(n))]
     return [round(float(np.percentile(out, 2.5)), 3), round(float(np.percentile(out, 97.5)), 3)]
+
+
+def distilled_rules(stream: str, kind: str, c: dict) -> str:
+    """Rules sent down from the shore: the five rules Claude's 200 blind answers followed (C5e follow-up, 2026-10-24)."""
+    if kind == "flat" or stream in ("temp", "pressure"):
+        return "sensor_fault"
+    z, peak, width = c["onset_z"], c["peak_z_next_2min"], c["seconds_beyond_threshold_in_2min"]
+    if stream == "wind" and (z >= 10 or peak >= 15 or c["flat_fraction_next_2min"] >= 0.5):
+        return "sensor_fault"
+    if stream == "vibration" and ((z < 0 and width >= 60) or (width == 1 and z >= 15)):
+        return "sensor_fault"
+    if stream == "solar" and width == 1 and abs(z) >= 15:
+        return "sensor_fault"
+    return "real_event"

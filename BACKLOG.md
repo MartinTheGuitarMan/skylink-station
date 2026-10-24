@@ -16,6 +16,7 @@ Top five:
 Next:
 1b. **Job R, retrospective review (C5d)**: rules arm done on dev seed 3 (iteration 13, R1 0.943). Left: model pilot on the Air on power (Qwen3-14B, gemma-4-e4b; R2-R4, 12 windows, `lms load ... --context-length 12288`), then 40 windows with two model sizes; then ask the owner whether job R joins the locked runs.
 1d. **Influx raw data growth** (31 GB on 2026-10-24, retention forever): owner said keep it for now and watch it (daily loop, disk watch). Option when needed: delete a run's raw data after its C8 check; the simulator recreates it from the seed.
+1e. **Escalation** (`docs/escalation.md`, C5e `dev`): next, pre-register and run (a) a residue trigger (wind, short vibration excursions) with the distilled rules as the edge, on fresh cases answered blind; (b) local models with the same physics text; (c) the teacher loop (Claude's reviewed answers as the edge model's examples). Build the daily-pass inbox (questions file in, answers and rule proposals out via mini-sync). On-call API mode costs money: ask the owner.
 1c. **Station ontology for the model jobs** (`docs/slm-backend.md`): one JSON file of streams, kinds, signatures and allowed causes; generate schemas, menus and prompt definitions from it. Five experiments ranked there; first: per-stream menus for R2/R3.
 2b. **Event-window scoring** in `skylink.analysis` (MAE in the 60 min after logged fronts, steps, drifts vs static): needed for the C4 verdict.
 0. Keep `docs/recipe.md` current after each night's results (deliverable; upgrade tags to `locked` only after the verdict runs).
