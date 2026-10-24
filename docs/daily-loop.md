@@ -25,10 +25,10 @@ morning), after the night on the Mini. Do one pass, report, stop. The rules in `
    rules reserve for the owner go there.
 
 ## Road to the verdict (keep this list current; it is the plan the pass follows)
-1. **Job P on dev seed 3** (`mini-p3`, queued 2026-10-23) to finish the dev triple for C5b/C5c. Then write the dev reading of C5b.
+1. **Job P on dev seed 3** (`mini-p3`, queued 2026-10-23; did not run on 2026-10-23/24, disk low on the Mini) to finish the dev triple for C5b/C5c. Then write the dev reading of C5b.
    A larger model (Qwen3-14B, about 8 GB) would need disk on the Mini (5 GB free on 2026-10-23): ask, do not download.
-2. **Backlog 1, base arm and backfill strategies** (C3, C6). Check the journal first: the arrival-order vs event-time-order
-   part has dev numbers in recipe section 4; close what is done, build what the verdict still needs.
+2. ~~**Backlog 1, base arm and backfill strategies** (C3, C6).~~ Done on dev seeds 1-3 (iteration 12): C6 ratios per phase
+   (`--base`) and C3 recovery (`--recovery`). The verdict pipeline must take C3's best River model only and add the edge control.
 3. **Backlog 3d, scoring for jobs N and E**, then a live night for them with two model sizes (3a). Backlog 3b (the agent in the
    live stack) is not needed for the verdict: C5b is defined on the same replayed data, which the closed-loop bench provides.
 4. **Verdict pipeline.** One script that turns the locked run ids into every C1-C8 number and the verdict lines of

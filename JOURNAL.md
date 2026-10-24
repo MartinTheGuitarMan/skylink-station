@@ -437,3 +437,30 @@ nothing was deleted and the guard was not lowered.
 **Decision.** `mini-p3` stays queued; it starts tonight only if the guard sees at least 3 GB at 23:00. Asked in the report.
 
 Night 2026-10-23/24: no finding (nothing ran).
+
+## Iteration 12 (2026-10-24): C3 recovery-time scoring (road step 2), dry run on dev-s3
+
+**Why.** Road step 2 (backlog 1, C3/C6). The C6 ratios per phase existed (`--base`, iteration 2); C3 had no code at all.
+**Built.** `skylink.analysis --recovery --arm <arm> --seed <seed>`: recovery time per event (front and step onsets, drift ends, link-ups
+from the Python twin of the link chain), median per stream, model, horizon and event kind, and the pre-registered rule (best model,
+median <= 15 min). Choices the C3 text leaves open, fixed before any C3 number was seen: the steady state is the median of the 5-min
+rolling MAE over the 30 min before the event; "stays" means up to the end of a 60-min look window, cut at the next event on the stream;
+an event that never recovers is censored (infinitely slow in the median); for an outage, the 30 min before the link went down (the base
+arm has no real-time forecasts during the outage; the first dry run measured before link-up and could score only 10-12 of 27 outages,
+fixed). 5 tests.
+**Dry run, dev-s3 (`reports/dev-s3-c3.md`).** Edge arm: drift ends and fronts (pressure, 3) recover in under a minute;
+steps pass on wind and solar (3 each), fail on temperature (1 step) and vibration (2). Base arms after link-up (25 outages): horizon 1-5 s
+and 3600 s recover in 1-8 min; 30 s to 10 min take 15-56 min (fail). The three strategies give the same medians to the minute.
+**Read honestly.** (a) The edge arm is a built-in control at the link-up instants: it never sees the outage, yet the rule "fails" there on
+temperature 60/600 s (40-44 min) and vibration (48-50 min). A 5-min rolling MAE of a noisy, diurnal stream leaves a band of +25 % around a
+30-min median for long stretches, so the metric has a large noise floor and part of every failure is not the event. (b) "Best model" is the
+minimum over 10 models of noisy medians, which favours passes; the winners are often the baselines (seasonal naive, persistence).
+(c) 1-5 events per kind except outages. (d) Identical strategy medians fit iteration 2: the strategies differ in coverage, not accuracy.
+**Seeds 1-2 too.** `dev-s1-drift` and `dev-s2-drift` (2026-10-18/19) postdate the base arms, so C3 ran on them as well (light queries,
+daytime). Rows passing at link-up (stream x horizon, best model, 19 rows): edge control 13 / 15 / 12 on seeds 1 / 2 / 3; base arms 4-6 on
+every seed and strategy (arrival 4 / 4 / 5, sorted 5 / 4 / 5, ignore 5 / 6 / 5; 16-33 outages per seed). So the outage does slow recovery
+well beyond the noise floor, and no backfill strategy fixes it: after link-up all three see the same live data. Caveat: the base arms have
+3 models, the edge 10, so part of the gap is the smaller choice of "best model".
+**Decision, before any locked run.** (1) C3 "best model" reads as C1 does: the best River model; persistence and seasonal naive are
+reported but not eligible. To be applied in the verdict pipeline (road step 4). (2) The verdict reports the edge arm's result at the same
+link-up instants next to the base arm, as the control; the pass rule stays as pre-registered. No threshold changed.
