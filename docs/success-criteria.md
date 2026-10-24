@@ -133,3 +133,10 @@ After every outage cycle, points stored in the InfluxDB raw bucket = points the 
   - *H11 (guess, before runs).* P3 escalates 30-45 % and recovers most of the oracle gain; P4 is weaker (the 0.8B voter adds noise).
     Claude on the escalated alerts reaches about 0.85 two-class F1, a little above gpt-oss-20b. On-call staleness is minutes, except after
     outages (median outage 40 min); the daily pass is 12-24 h, which is fine for review and useless for alerts.
+- 2026-10-24 (later the same day, after the C5e scores): **C5e follow-up, rules sent down.** Claude's 200 answers followed five
+  rules, written out here before they are run on any other case: a flat alert is a fault; any temp or pressure jump is a fault; wind is
+  a fault when onset z >= 10, peak z >= 15 or the next 2 min are at least half flat; vibration is a fault when the level drops and stays
+  down (onset z < 0 and >= 60 s beyond threshold) or a one-second excursion has z >= 15; solar is a fault when a one-second excursion
+  has |z| >= 15; everything else is a real event. Test: the 3079 edge alerts of dev seeds 1-3 not among the 200, natural mix,
+  two-class macro-F1 vs the job-T rules. Prediction: >= 0.85. Exploratory (dev, rules distilled from Claude's own answers), reported
+  apart from C5e's pass rule.
