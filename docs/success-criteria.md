@@ -151,3 +151,7 @@ After every outage cycle, points stored in the InfluxDB raw bucket = points the 
   Read after at least 5 answered nights: "residue escalation pays" if the pooled gain is ≥ **+0.02** with the paired bootstrap CI
   (over nights' alerts) excluding 0. *H12 (guess):* gain +0.01 to +0.03; Claude stays near 0.7 on wind, where the 2-min facts
   are thin, so most of the value comes later from rules and hindsight, not from answers.
+- 2026-10-24: **stop rule made stricter**, owner's words: continue "until we reach a stable state", "no new findings and ideas".
+  The experiment ends when (a) the locked-seed verdict is written up, (b) three consecutive daily passes after it give no finding, and
+  (c) no idea in `BACKLOG.md` is still open: each has been tested or written off with a reason. A new idea, from a result or from the
+  owner, keeps the experiment running. No threshold, verdict rule or hypothesis changes.

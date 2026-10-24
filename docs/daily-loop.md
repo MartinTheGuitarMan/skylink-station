@@ -40,6 +40,11 @@ morning), after the night on the Mini. Do one pass, report, stop. The rules in `
 ## Road to the verdict (keep this list current; it is the plan the pass follows)
 1. **Job P on dev seed 3** (`mini-p3`, queued 2026-10-23; did not run on 2026-10-23/24, disk low on the Mini) to finish the dev triple for C5b/C5c. Then write the dev reading of C5b.
    A larger model (Qwen3-14B, about 8 GB) would need disk on the Mini (5 GB free on 2026-10-23): ask, do not download.
+1b. **Escalation inbox** (C5e inbox run, runs by itself each night): answer it in step 2b every pass; read the pooled result after
+   5 answered nights and write it up (`reports/`, recipe section 5).
+1c. **Job R model arms** (C5d): on the Air, on power, at most 30 min a pass, `nice`d, one model loaded at a time (16k context):
+   Qwen3-14B and gemma-4-e4b, R2-R4, then the full 40 windows in chunks (`review_eval.py run --until`). Battery: skip, say so.
+1d. **Ontology experiments** (`docs/slm-backend.md`, ranked list): pre-register one at a time in the Amendments, run on the Air like 1c.
 2. ~~**Backlog 1, base arm and backfill strategies** (C3, C6).~~ Done on dev seeds 1-3 (iteration 12): C6 ratios per phase
    (`--base`) and C3 recovery (`--recovery`). The verdict pipeline must take C3's best River model only and add the edge control.
 3. **Backlog 3d, scoring for jobs N and E**, then a live night for them with two model sizes (3a). Backlog 3b (the agent in the
@@ -47,8 +52,9 @@ morning), after the night on the Mini. Do one pass, report, stop. The rules in `
 4. **Verdict pipeline.** One script that turns the locked run ids into every C1-C8 number and the verdict lines of
    section 2 of `docs/success-criteria.md`. Dry-run it end to end on dev seeds and commit before any locked run.
 5. **Locked runs.** Seeds 101-105, 7 days, all five streams, `config/scenario-default.toml` (about two nights), then C5a/C5b on
-   locked cases. Log every locked run in the journal. Write `reports/verdict.md` with the final form of the recipe.
-6. **Stop rule.** After the verdict, count nights: three consecutive `no finding` nights end the experiment. Then write the final
+   locked cases. Default unless the owner says otherwise: job R (C5d) and escalation (C5e) are scored on the locked runs too,
+   as reported claims outside the verdict rule. Log every locked run in the journal. Write `reports/verdict.md` with the final form of the recipe.
+6. **Stop rule (stable state).** After the verdict, count passes: the experiment is stable when three consecutive passes give `no finding` **and** no idea is left open (owner, 2026-10-24: "no new findings and ideas"). Every pass ends its journal entry with `Open ideas: N` from `BACKLOG.md`; an idea leaves the list only when tested or written off with a reason. A new idea resets the count. Then write the final
    report and start the report with `STOPP NÅTT`, asking the owner to turn off the scheduled task and the Mini's nightly daemon.
 
 ## Ask the owner first (in the report, never by waiting mid-pass)
