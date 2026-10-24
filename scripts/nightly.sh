@@ -4,7 +4,7 @@
 #
 # queue.txt lines: <run-id> <scenario.toml> <seed> <days> <speed> [edge-config]   (# comments ok)
 # Installed on the Mini as the system daemon se.skylink.nightly (ops/README.md).
-# Stops early when free disk drops below MIN_FREE_GB (default 3). Writes runs/last-night.txt: one line per
+# Stops early when free disk drops below MIN_FREE_GB (default 3) or the colima VM disk that holds InfluxDB below MIN_VM_FREE_GB (6). Writes runs/last-night.txt: one line per
 # item (ok / stopped / cut / failed), read by the daytime loop (docs/daily-loop.md).
 set -u
 cd "$(dirname "$0")/.."
@@ -12,11 +12,15 @@ set -a; . ./.env; set +a
 export INFLUX_URL=http://localhost:8086
 END="${WINDOW_END:-06:00}"
 MIN_FREE_GB="${MIN_FREE_GB:-3}"
+MIN_VM_FREE_GB="${MIN_VM_FREE_GB:-6}"   # InfluxDB lives on the colima VM disk (40 GB); it filled up on 2026-10-19 and voided dev-s2-drift
 SUMMARY=runs/last-night.txt
 ran=0
 
 free_gb() { df -g . | awk 'NR==2 {print $4}'; }
+vm_free_gb() { docker exec skylink-influxdb-1 df -Pk /var/lib/influxdb2 2>/dev/null | awk 'NR==2 {print int($4/1048576)}'; }
 note() { echo "$*" >> "$SUMMARY"; }
+# prints why simulations (the only InfluxDB writers) must not start, or nothing
+vm_reason() { local vm; vm=$(vm_free_gb); [ -n "$vm" ] && [ "$vm" -lt "$MIN_VM_FREE_GB" ] && echo "VM disk low (InfluxDB volume: $vm GB free, need $MIN_VM_FREE_GB)"; }
 # prints why the night must stop (window over, disk low), or nothing
 stop_reason() {
   local now; now=$(TZ=Europe/Stockholm date +%H%M)
@@ -46,6 +50,7 @@ while read -r run scen seed days speed edge; do
   case "$run" in ""|\#*) continue;; esac
   if [ -f "runs/$run/summary.json" ] && grep -q '"finished": true' "runs/$run/summary.json"; then continue; fi
   why=$(stop_reason); [ -n "$why" ] && { echo "$why"; note "stop: $why"; break; }
+  why=$(vm_reason); [ -n "$why" ] && { echo "$why"; note "sim queue skipped: $why"; break; }
   echo "$(date '+%F %T') run $run (seed $seed, $days d, ${speed}x)"; ran=1
   resume=""; [ -f "runs/$run/checkpoint.json" ] && resume="--resume"
   nice -n 15 uv run skylink-sim run --config "$scen" --run-id "$run" --seed "$seed" --days "$days" \

@@ -21,7 +21,9 @@ status)
            echo "-- runs/last-night.txt"; cat runs/last-night.txt 2>/dev/null || echo "(none yet)"
            df -g . | awk "NR==2 {print \"free disk: \" \$4 \" GB\" (\$4 < 20 ? \"  WARNING: under 20 GB, tell the owner\" : \"\")}"
            PATH=/opt/homebrew/bin:$PATH docker exec skylink-influxdb-1 du -sh /var/lib/influxdb2/engine/data 2>/dev/null \
-             | awk "{print \"influx data: \" \$1 \" (raw kept forever; owner said keep it, watch it)\"}" || true'
+             | awk "{print \"influx data: \" \$1 \" (raw kept forever; owner said keep it, watch it)\"}" || true
+           PATH=/opt/homebrew/bin:$PATH docker exec skylink-influxdb-1 df -Pk /var/lib/influxdb2 2>/dev/null \
+             | awk "NR==2 {g=int(\$4/1048576); print \"VM disk (InfluxDB): \" g \" GB free of \" int(\$2/1048576) (g < 6 ? \"  WARNING: nightly runs stop under 6 GB\" : \"\")}" || true'
   ;;
 pull)
   mkdir -p runs/mini/reports
