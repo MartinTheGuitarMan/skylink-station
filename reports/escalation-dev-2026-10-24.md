@@ -40,7 +40,7 @@ on call median 3.0 min, p95 42 min (P2; the tail is outages), 3.0 / 3.0 min for 
 **"Escalation pays": not shown.** No policy reaches +0.10 with the CI above 0 at ≤ 50 % escalated with Claude. Best within the cap:
 P4/P5 +0.074 [0.022, 0.126] at 36-38 %. Escalating everything to Claude gives +0.228 [0.163, 0.295], but at 100 %. The limit is the
 trigger, not the shore: with a perfect shore P3 buys only +0.055 and P4 +0.108, because the edge's disagreements cover a third of
-its errors. **"Big brain needed": not applicable** (no policy passed with Claude); descriptively, Claude on all alerts is +0.18 to +0.19
+its errors. **"Big brain needed": not applicable** (no policy passed with Claude); descriptively, Claude on all alerts is +0.17 to +0.19
 above either local stand-in.
 
 ## H11
