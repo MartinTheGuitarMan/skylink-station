@@ -426,3 +426,14 @@ status / pull / push between the Air and the Mini (git bundles over ssh, refuses
 (5) A daily scheduled task on the Air runs that pass (outside the repo, set up by the owner's request).
 **Tested.** Scripted-agent bench runs to the end and, with `--until` one minute ahead, stops after 2.2 of 30 days with exit 3; stop check
 gives "window over" and "disk low" in the right cases; `mini-sync.sh status` and `pull` against the Mini.
+
+## Night 2026-10-23/24: nothing ran (disk low on the Mini)
+
+**Run.** `mini-p3` (job P, dev seed 3) was queued. The nightly stop check refused at 23:00: 2 GB free, `MIN_FREE_GB` 3.
+**Look on 2026-10-24 (read-only).** The Mini's data volume is full outside this repo: 3.2 GB free of 460 GB; the colima VM uses 39 GB,
+Ollama models 15 GB, `~/Library/Caches` 8.6 GB. This repo's `runs/` is 30 MB, so the runs did not fill it. Free space went from 5 GB
+(2026-10-23) to 2-3 GB without a run, so something outside the experiment is writing. Deleting anything on the Mini is the owner's call;
+nothing was deleted and the guard was not lowered.
+**Decision.** `mini-p3` stays queued; it starts tonight only if the guard sees at least 3 GB at 23:00. Asked in the report.
+
+Night 2026-10-23/24: no finding (nothing ran).
