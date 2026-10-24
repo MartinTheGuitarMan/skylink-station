@@ -2,6 +2,7 @@
 
     uv run python -m skylink.analysis --run dev-1 [--warmup-days 2] [--json out.json]
     uv run python -m skylink.analysis --run dev-1 --event-windows   # C4: online vs static after regime changes
+    uv run python -m skylink.analysis --run dev-s3 --seed 3 --recovery --arm base-arrival   # C3: recovery times
 
 Skill = 1 - sum(abs_err) / sum(pers_abs_err), over the same steps (the engine writes the paired
 persistence error on every error line). The bootstrap resamples whole hours."""
@@ -250,14 +251,100 @@ def verdict_table(rows: list[dict]) -> str:
     return "\n".join(lines)
 
 
-def influx_series(influx: Influx, run: str, start_s: int, stop_s: int, e0: int, bin_s: int = 60) -> dict:
-    """Per-bin sum and count of abs_err for every (stream, model, horizon) of the edge arm, rt=1 only
+# ---- C3: recovery after disturbance ------------------------------------------------------------
+# Pre-registered: steps from the event until a 5-min rolling MAE stays within 25 % of the pre-event steady state
+# (median of the 30 min before). Pass: median recovery <= 15 min per event kind for the best model.
+# Choices the text leaves open (fixed here, before any C3 number was looked at): the steady state is the median of
+# the 5-min rolling MAE over the 30 min before the event; "stays" means up to the end of a 60-min look window,
+# cut at the next event on the same stream; an event that never recovers inside it is censored (counts as
+# infinitely slow in the median); an event without 30 min of scored data before it is skipped.
+RECOVERY_KINDS = ("outage_end", "front", "step", "drift_end")
+
+
+def recovery_events(events: list[dict], outages: list[tuple[int, int]] = ()) -> list[dict]:
+    """[{stream, kind, t}] C3 event times: front and step onsets, drift ends, and link-up (outage end; stream "*"
+    means every stream, scored on the base arm)."""
+    out = [{"stream": e["stream"], "kind": e["kind"], "t": e["t0"]} for e in events if e["kind"] in ("front", "step")]
+    out += [{"stream": e["stream"], "kind": "drift_end", "t": e["t1"]} for e in events if e["kind"] == "drift"]
+    out += [{"stream": "*", "kind": "outage_end", "t": float(up)} for _, up in outages]
+    return sorted(out, key=lambda e: e["t"])
+
+
+def recovery_time(err_sum: np.ndarray, err_n: np.ndarray, t: float, bin_s: int, until: float,
+                  roll_s: int = 300, pre_s: int = 1800, tol: float = 0.25) -> float | None:
+    """Seconds from t until the rolling MAE stays <= (1 + tol) x steady state up to `until`; inf if it never does;
+    None if there is no steady state. Resolution is one bin."""
+    k = max(1, roll_s // bin_s)
+    cs, cn = np.concatenate(([0.0], np.cumsum(err_sum))), np.concatenate(([0.0], np.cumsum(err_n)))
+    i0, i1 = int(t // bin_s), min(int(-(-until // bin_s)), len(err_sum))
+    def roll(i):  # trailing window of k bins ending at bin i (inclusive)
+        a = max(0, i - k + 1)
+        n = cn[i + 1] - cn[a]
+        return (cs[i + 1] - cs[a]) / n if n > 0 else np.nan
+    pre = [roll(i) for i in range(max(0, i0 - pre_s // bin_s), i0)]
+    pre = [v for v in pre if not np.isnan(v)]
+    if len(pre) < (pre_s // bin_s) // 2 or i1 <= i0:
+        return None
+    bar = (1 + tol) * float(np.median(pre))
+    rec = None
+    for i in range(i1 - 1, i0 - 1, -1):  # walk back from the window end while the rolling MAE stays under the bar
+        v = roll(i)
+        if np.isnan(v) or v <= bar:
+            rec = i
+        else:
+            break
+    if rec is None:
+        return float("inf")
+    return max(0.0, rec * bin_s + bin_s - t)  # the bin is recovered at its end
+
+
+def recovery_table(series: dict, rec_events: list[dict], warm_s: float, stop_s: float, bin_s: int,
+                   window_s: float = 3600.0) -> list[dict]:
+    """series: {(stream, model, horizon): (err_sum, err_n)}. One row per stream, model, horizon and event kind:
+    median recovery (s), events scored, censored count."""
+    rows = []
+    for (stream, model, h), (es, en) in sorted(series.items()):
+        mine = [e for e in rec_events if e["stream"] in (stream, "*")]
+        times: dict = defaultdict(list)
+        for j, e in enumerate(mine):
+            if not warm_s <= e["t"] < stop_s:
+                continue
+            nxt = next((m["t"] for m in mine[j + 1:] if m["t"] > e["t"]), stop_s)
+            r = recovery_time(es, en, e["t"], bin_s, min(e["t"] + window_s, nxt, stop_s))
+            if r is not None:
+                times[e["kind"]].append(r)
+        for kind, ts in sorted(times.items()):
+            rows.append({"stream": stream, "model": model, "horizon": h, "kind": kind, "events": len(ts),
+                         "censored": sum(np.isinf(ts)), "median_s": float(np.median(ts))})
+    return rows
+
+
+def c3_verdict(rows: list[dict], limit_s: float = 900.0) -> list[dict]:
+    """Per stream, horizon and event kind: the model with the shortest median recovery, and the pre-registered rule."""
+    out = []
+    for key in sorted({(r["stream"], r["horizon"], r["kind"]) for r in rows}):
+        best = min((r for r in rows if (r["stream"], r["horizon"], r["kind"]) == key), key=lambda r: r["median_s"])
+        out.append({**best, "pass": bool(best["median_s"] <= limit_s)})
+    return out
+
+
+def recovery_md(rows: list[dict]) -> str:
+    lines = ["| stream | model | h (s) | event | n | censored | median recovery (min) | C3 rule |", "|" + "---|" * 8]
+    for r in rows:
+        m = "never" if np.isinf(r["median_s"]) else f"{r['median_s'] / 60:.1f}"
+        lines.append(f"| {r['stream']} | {r['model']} | {r['horizon']} | {r['kind']} | {r['events']} | {r['censored']} | {m} | "
+                     f"{('pass' if r['pass'] else 'fail') if 'pass' in r else ''} |")
+    return "\n".join(lines)
+
+
+def influx_series(influx: Influx, run: str, start_s: int, stop_s: int, e0: int, bin_s: int = 60, arm: str = "river") -> dict:
+    """Per-bin sum and count of abs_err for every (stream, model, horizon) of one arm (default the edge arm), rt=1 only
     (bins are relative to the run start e0, in event seconds)."""
     out: dict = {}
     n = int(-(-(stop_s - e0) // bin_s))
     base = f'''from(bucket: "forecasts") |> range(start: {start_s}, stop: {stop_s})
   |> filter(fn: (r) => r._measurement == "error" and r.run == "{run}" and r._field == "abs_err")
-  |> filter(fn: (r) => r.arm == "river" and (not exists r.rt or r.rt == "1"))
+  |> filter(fn: (r) => r.arm == "{arm}" and (not exists r.rt or r.rt == "1"))
   |> group(columns: ["stream", "model", "horizon"])
   |> aggregateWindow(every: {bin_s}s, fn: %s, createEmpty: false)'''
     for fn, slot in (("sum", 0), ("count", 1)):
@@ -294,12 +381,27 @@ def main() -> None:
     ap.add_argument("--event-windows", action="store_true",
                     help="C4: MAE of each model vs the static one in the 60 min after logged regime changes, and in stationary bins")
     ap.add_argument("--static", default="lin_lag_static", help="reference model(s), comma-separated; the first is the pre-registered one")
+    ap.add_argument("--recovery", action="store_true",
+                    help="C3: median recovery time per event kind (fronts, steps, drift ends, link-ups) for one arm")
+    ap.add_argument("--seed", type=int, help="run seed for the link schedule of --recovery (default: the config's)")
+    ap.add_argument("--arm", default="river", help="arm for --recovery (river = edge; base-arrival, base-sorted, base-ignore)")
     ap.add_argument("--json")
     a = ap.parse_args()
     cfg = load_cfg(a.config)
     e0 = epoch_us(cfg) // 1_000_000
     start = e0 + int(a.warmup_days * 86400)
     stop = e0 + int((a.days or 400) * 86400)
+    if a.recovery:
+        from .agent import linkmodel
+        stop_s = e0 + int((a.days or cfg["run"]["duration_days"]) * 86400)
+        series = influx_series(Influx(), a.run, e0, stop_s, e0, arm=a.arm)
+        sk = cfg["skylink"]
+        outs = linkmodel.outages(linkmodel.schedule(a.seed if a.seed is not None else cfg["run"]["seed"], stop_s - e0, sk["mean_up_s"], sk["mean_down_s"]), stop_s - e0)
+        rows = recovery_table(series, recovery_events(influx_events(Influx(), a.run, e0), outs), a.warmup_days * 86400, stop_s - e0, 60)
+        print(recovery_md(rows) + "\n\n" + recovery_md(c3_verdict(rows)))
+        if a.json:
+            json.dump(rows, open(a.json, "w"), indent=1)
+        return
     if a.event_windows:
         stop_s = e0 + int((a.days or cfg["run"]["duration_days"]) * 86400)
         series = influx_series(Influx(), a.run, e0, stop_s, e0)
