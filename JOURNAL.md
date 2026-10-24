@@ -464,3 +464,33 @@ well beyond the noise floor, and no backfill strategy fixes it: after link-up al
 **Decision, before any locked run.** (1) C3 "best model" reads as C1 does: the best River model; persistence and seasonal naive are
 reported but not eligible. To be applied in the verdict pipeline (road step 4). (2) The verdict reports the edge arm's result at the same
 link-up instants next to the base arm, as the control; the pass rule stays as pre-registered. No threshold changed.
+
+## Iteration 13 (2026-10-24): job R, retrospective review (C5d), rules arm on dev seed 3
+
+**Why.** The owner's idea: instead of having models select (job P: "lift not shown"), use them to analyse results after the fact.
+Pre-registered first as C5d in the Amendments of `docs/success-criteria.md` (35e44f5), with H10, before any job-R code or number.
+**Built.** `skylink.agent.review`: one-hour windows of event time holding the job-T alerts (same 3495 alerts on seeds 1-3), each with
+hindsight numbers from the full event-time series (event-time z at the alert second, width above 4 sigma, later levels, flat-run length,
+missing seconds, inside an outage); R0 (job-T rules) and R1 (hindsight rules); a report schema for model methods (labels, fault streams,
+80-word summary; R4 gets the R1 labels and may only override with a reason); a summary check in code (word cap, alert ids exist, every
+number in the input or a count of the report's own labels); scoring with window bootstrap and paired difference vs R1.
+`scripts/review_eval.py` build / run / report (R2-R4 through mcp-minions). 6 tests; a fake-model dry run exercised R2-R4 and the check
+caught an invented number.
+**R1 thresholds, seeds 1-2 only** (2337 alerts, grid of 750 settings): flat run >= 60 s -> fault; event-time |z| < 2 -> artefact; at most
+1 s beyond 4 sigma -> fault (spike); wind |z| >= 10 -> fault (a gust is at most about 2.6x). 0.915 on seeds 1-2 (0.928 / 0.895 per seed),
+R0 0.534. A 2 h step-offset test was in the first draft and dropped: it fired on solar clouds and diurnal change, best with it off.
+Frozen and committed (ac3598c) before seed 3 was scored.
+**Result, seed 3** (`r-rules-s3`, 40 windows: all 24 windows with artefacts plus 16 random, 326 alerts, 97 artefacts):
+
+| method | macro-F1 [95% CI] | fault-stream P / R | summary valid |
+|---|---|---|---|
+| R0 job-T rules | 0.677 [0.557, 0.775] | 1.0 / 0.333 | 1.0 (template) |
+| R1 hindsight rules | 0.943 [0.902, 0.973] | 0.861 / 0.939 | 1.0 (template) |
+
+On all 1158 seed-3 alerts: R0 0.709, R1 0.925.
+**Read honestly.** H10's first part holds on dev: R1 >= 0.85. The artefact class is nearly free in hindsight (an alert the true-order
+series does not show), which the 2-min triage could never see. The C5d lift bar is +0.05 over R1, about 0.99, so R2 and R3 can at best
+tie; the live question is R4 (rules label, model writes, checked in code). One seed, the thresholds came from the other two.
+**Not run: the model arms.** The Air was on battery all afternoon (the local-model rule: no model on battery). Ready to run when it is on
+power: Qwen3-14B and gemma-4-e4b, 12 windows, R2-R4, under 30 min (context >= 12288 needed: the largest window is about 19k characters).
+**Decision.** Recipe section 5 updated (`dev`, rules only). Model pilot next time the Air is plugged in; the full 40-window run needs a slot.
