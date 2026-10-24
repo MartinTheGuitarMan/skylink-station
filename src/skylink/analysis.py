@@ -317,7 +317,8 @@ def recovery_table(series: dict, rec_events: list[dict], warm_s: float, stop_s: 
                 times[e["kind"]].append(r)
         for kind, ts in sorted(times.items()):
             rows.append({"stream": stream, "model": model, "horizon": h, "kind": kind, "events": len(ts),
-                         "censored": int(np.isinf(ts).sum()), "median_s": float(np.median(ts))})
+                         "censored": int(np.isinf(ts).sum()), "median_s": float(np.median(ts)),
+                         "times_s": [None if np.isinf(x) else float(x) for x in ts]})   # None = never recovered
     return rows
 
 
