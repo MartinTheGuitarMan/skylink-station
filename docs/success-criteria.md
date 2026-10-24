@@ -80,3 +80,31 @@ After every outage cycle, points stored in the InfluxDB raw bucket = points the 
 
 - 2026-10-17: added a deliverable, `docs/recipe.md` (evidence-tagged recipe for where River and language models create value at the edge), requested by the owner. It is not a criterion and changes no threshold, verdict rule or hypothesis. It is part of the final report.
 - 2026-10-17: stop rule, proposed by the owner and made precise. A *finding* is anything that changes a claim in `docs/recipe.md`, an evidence tag, or the status of a hypothesis. The experiment and the recipe are finished when (a) the locked-seed verdict runs (seeds 101-105, 7 days, all five streams) have been done once and written up, and (b) three consecutive night cycles after that produce no finding. Until (a), "no new findings on dev seeds" does not end the experiment, because dev findings are not verdicts. No threshold, verdict rule or hypothesis is changed.
+- 2026-10-24: added **C5d Retrospective review (job R)**, requested by the owner ("use the models to analyse results instead of
+  selecting"). Written before any job-R code or number exists. It is a separate, reported claim: it is **not** part of the verdict rule
+  "the agent layer is justified" (still C5a ∨ C5b, and C5c), and it changes no threshold, verdict rule or hypothesis above.
+  - *Task.* One-hour windows of event time, all five streams. Input, made by scripts only: the link outages in the window and every
+    alert in it (edge detector, plus artefact alerts from the arrival-order series), each with the 2-min context of job T plus
+    *hindsight* numbers computed from the full event-time series afterwards (event-time z at the alert second, width above threshold,
+    level offset after 10 s / 1 min / 10 min / 30 min / 2 h, flat run length, missing seconds, inside an outage or not). Output per
+    window: a cause per alert {real_event, sensor_fault, backfill_artefact}, the list of streams with a sensor fault, and a summary of at
+    most 80 words for the uplink. Truth: the simulator's event log (labels as in job T).
+  - *Methods, fixed now.* R0 the job-T rules (no hindsight). R1 hindsight rules in code, written from the simulator's event
+    definitions, thresholds set on dev seeds 1-2 only. R2 a model labels each alert alone (classify, hindsight numbers, 3 worked
+    examples per class from seeds 1-2). R3 a model reads the whole window and returns labels, fault streams and summary in one
+    schema-constrained call. R4 hybrid: the model gets R1's labels, may override one only with a stated reason, and writes the fault
+    streams and summary. R0-R2 get a template summary written by code.
+  - *Data.* Development comparison on **dev seed 3** (7 days), windows sampled with a fixed seed: every window holding an artefact
+    alert plus random windows up to 40. Few-shot examples and R1 thresholds come from seeds 1-2 only. Locked seeds only if the owner
+    adds job R to the locked runs.
+  - *Metrics.* Cause macro-F1 over the alerts of the sampled windows; fault-stream precision and recall per window; summary validity
+    (at most 80 words, every number, stream name and alert id in it appears in the input; checked in code); invalid-output rate;
+    latency per window; bytes of the report vs bytes of the window's 1 s data. 95% CIs by bootstrap over windows (2000 resamples).
+  - *Pass rule, per model method (R2, R3, R4) on its own.* "Review adds lift" if macro-F1 − R1's macro-F1 ≥ **+0.05** with the
+    paired bootstrap CI of the difference excluding 0, fault-stream recall not below R1's, and summary validity ≥ **0.95**.
+    "Safe as report writer" (R4 only) if summary validity ≥ 0.95 and its overrides lower macro-F1 by no more than **0.01** vs R1.
+    Otherwise "lift not shown", with the effect size. At least two model sizes; three methods are tested, so a single pass is read
+    with that in mind.
+  - *H10 (guess, before runs).* Hindsight is what helps, not the model: R1 reaches macro-F1 ≥ 0.85 (R0 is about 0.63 on job-T cases).
+    No model method beats R1 by +0.05. R3 (whole window, no rules) is below R1. R4 keeps R1's accuracy within 0.01 and writes valid
+    summaries ≥ 0.95 of the time with 9-14 B models, less often with ≤ 4 B models.
