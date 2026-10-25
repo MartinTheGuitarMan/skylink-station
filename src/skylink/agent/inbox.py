@@ -154,6 +154,7 @@ def score(root: Path, truth_fn=truth_for) -> dict:
                          "gain_ci": boot_diff(pooled_t, pooled_f, pooled_e),
                          "fixed": sum(n["fixed"] for n in nights), "broke": sum(n["broke"] for n in nights)}
         out["pooled"]["readable"] = len(nights) >= 5
+    root.mkdir(parents=True, exist_ok=True)                                       # first night: nothing asked yet
     (root / "summary.json").write_text(json.dumps(out, indent=1))
     lines = ["| night | seed | alerts | asked | answered | edge F1 | final F1 | answer acc | edge acc on asked | fixed / broke | h to apply |",
              "|---|---|---|---|---|---|---|---|---|---|---|"]

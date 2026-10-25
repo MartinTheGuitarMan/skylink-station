@@ -56,6 +56,13 @@ def test_apply_and_score(tmp_path):
     assert (tmp_path / "summary.md").exists()
 
 
+
+def test_score_before_any_night(tmp_path):
+    root = tmp_path / "escalation"                                               # the Mini's first night: no folder yet
+    assert inbox.score(root) == {"nights": []}
+    assert (root / "summary.md").exists()
+
+
 def test_pending_and_show(tmp_path):
     inbox.ask(tmp_path, "e11", 11, 1, budget=5, cases=_cases())
     out = tmp_path / "outbox"
