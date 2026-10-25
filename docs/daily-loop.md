@@ -38,12 +38,13 @@ morning), after the night on the Mini. Do one pass, report, stop. The rules in `
    rules reserve for the owner go there.
 
 ## Road to the verdict (keep this list current; it is the plan the pass follows)
-1. **Job P on dev seed 3** (`mini-p3`, queued 2026-10-23; did not run on 2026-10-23/24, disk low on the Mini) to finish the dev triple for C5b/C5c. Then write the dev reading of C5b.
-   A larger model (Qwen3-14B, about 8 GB) would need disk on the Mini (5 GB free on 2026-10-23): ask, do not download.
+1. ~~**Job P on dev seed 3**~~ Done on the night 2026-10-24/25; dev reading of C5b on seeds 1-3 in the journal (lift not shown).
+   A larger model (Qwen3-14B, about 8 GB) for job P would need disk on the Mini: ask, do not download.
 1b. **Escalation inbox** (C5e inbox run, runs by itself each night): answer it in step 2b every pass; read the pooled result after
    5 answered nights and write it up (`reports/`, recipe section 5).
 1c. **Job R model arms** (C5d): on the Air, on power, at most 30 min a pass, `nice`d, one model loaded at a time (16k context):
-   Qwen3-14B and gemma-4-e4b, R2-R4, then the full 40 windows in chunks (`review_eval.py run --until`). Battery: skip, say so.
+   Qwen3-14B and gemma-4-e4b, R2-R4 (pilot on 8 windows done, iterations 16 and 19), then the full 40 windows in chunks
+   (`review_eval.py run --until`). Battery: skip, say so.
 1d. **Ontology experiments** (`docs/slm-backend.md`, ranked list): pre-register one at a time in the Amendments, run on the Air like 1c.
 2. ~~**Backlog 1, base arm and backfill strategies** (C3, C6).~~ Done on dev seeds 1-3 (iteration 12): C6 ratios per phase
    (`--base`) and C3 recovery (`--recovery`). The verdict pipeline must take C3's best River model only and add the edge control.
@@ -51,7 +52,8 @@ morning), after the night on the Mini. Do one pass, report, stop. The rules in `
    live stack) is not needed for the verdict: C5b is defined on the same replayed data, which the closed-loop bench provides.
 4. ~~**Verdict pipeline.**~~ Built and dry-run on dev (iteration 18): `scripts/verdict.py collect` on the Mini (about 5 min a
    run), `decide` anywhere, `reports/verdict-<label>.md`. Before the locked runs it still needs two inputs the dry run showed missing:
-   (a) a **C2 run at 1x** on the Mini (dev seed, all five streams, about 2 h of the night window; then `collect --c2-run`), and
+   (a) a **C2 run at 1x** on the Mini (dev seed, all five streams, about 2 h of the night window; then `collect --c2-run`;
+   queued 2026-10-25 as `dev-c2-1x`), and
    (b) a **C7 replicate**: run one locked seed twice (both logged) and pass `--replicate`.
 5. **Locked runs.** Seeds 101-105, 7 days, all five streams, `config/scenario-default.toml` (about two nights), then C5a/C5b on
    locked cases. Default unless the owner says otherwise: job R (C5d) and escalation (C5e) are scored on the locked runs too,
