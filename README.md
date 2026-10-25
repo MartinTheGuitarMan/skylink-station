@@ -91,8 +91,8 @@ blind. What comes back up is not only answers but **rules** distilled from them,
 
 | loop part | how it is built here |
 |---|---|
-| act | nights (23:00-06:00) on a Mac Mini: simulations at 60x, model benches, the escalation inbox |
-| observe | a daily pass on a laptop pulls the night's results ([`docs/daily-loop.md`](docs/daily-loop.md)) |
+| act | nights (23:00-06:00) on a night host: simulations at 60x, model benches, the escalation inbox |
+| observe | a daily pass on a second machine pulls the night's results ([`docs/daily-loop.md`](docs/daily-loop.md)) |
 | verify | numbers come from scripts against the simulator's ground truth, never from a model's say-so; every agent arm has a twin without the agent on the same data |
 | guard | the bar is fixed before the code: criteria, thresholds and guesses are pre-registered in [`docs/success-criteria.md`](docs/success-criteria.md) and changed only by dated amendments; locked test seeds stay unread until the verdict; the agent proposes, guardrails decide |
 | remember | [`JOURNAL.md`](JOURNAL.md) (what was tried, why, result, decision), [`BACKLOG.md`](BACKLOG.md), git history as the audit trail |
@@ -167,4 +167,4 @@ Ports bind to 127.0.0.1; set `BIND=0.0.0.0` in `.env` to open them to the LAN.
 | river | 1.0 | 768 MB |
 | grafana | 0.5 | 768 MB |
 
-The Docker VM on the development laptop (colima profile `skylink`) has 4 CPUs and 6 GB.
+The Docker VM used in development has 4 CPUs and 6 GB.
