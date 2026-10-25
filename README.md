@@ -92,7 +92,7 @@ blind. What comes back up is not only answers but **rules** distilled from them,
 | loop part | how it is built here |
 |---|---|
 | act | nights (23:00-06:00) on a night host: simulations at 60x, model benches, the escalation inbox |
-| observe | a daily pass on a second machine pulls the night's results ([`docs/daily-loop.md`](docs/daily-loop.md)) |
+| observe | a daily pass on a day host pulls the night's results ([`docs/daily-loop.md`](docs/daily-loop.md)) |
 | verify | numbers come from scripts against the simulator's ground truth, never from a model's say-so; every agent arm has a twin without the agent on the same data |
 | guard | the bar is fixed before the code: criteria, thresholds and guesses are pre-registered in [`docs/success-criteria.md`](docs/success-criteria.md) and changed only by dated amendments; locked test seeds stay unread until the verdict; the agent proposes, guardrails decide |
 | remember | [`JOURNAL.md`](JOURNAL.md) (what was tried, why, result, decision), [`BACKLOG.md`](BACKLOG.md), git history as the audit trail |

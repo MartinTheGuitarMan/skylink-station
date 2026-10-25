@@ -39,7 +39,7 @@ edge: final label  <--link up-- answers + new rules + worked examples <-----+
 ## Where the big brain runs (two modes, both measured)
 | mode | how | time to answer (escalated alerts, dev) | cost | fits |
 |---|---|---|---|---|
-| Daily pass | the edge's questions land in an inbox file in the repo's run folder; the scheduled Claude session (the daily loop) answers them and writes answers plus rule proposals back; the Mini picks them up at the next sync | median 12.8 h, p95 23 h | none extra | review, rules, examples; not live alerts |
+| Daily pass | the edge's questions land in an inbox file in the repo's run folder; the scheduled Claude session (the daily loop) answers them and writes answers plus rule proposals back; the night host picks them up at the next sync | median 12.8 h, p95 23 h | none extra | review, rules, examples; not live alerts |
 | On call | a small service ashore calls the Claude API when a question arrives | median 3 min, p95 42 min (outages) | per call; needs a key | live alerts |
 
 **Built 2026-10-24** (the daily pass): `skylink.agent.inbox`, `scripts/escalate.py`, the nightly step in `scripts/nightly.sh`, `scripts/mini-sync.sh answers`, step 2b of `docs/daily-loop.md`, queue `config/escalation-queue.txt` (dev seeds 11-30, one day a night, 40 questions). A simulated day gives about 200 edge alerts, 90 residue, 40 questions of about 440 bytes.

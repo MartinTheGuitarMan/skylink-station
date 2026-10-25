@@ -208,3 +208,9 @@ After every outage cycle, points stored in the InfluxDB raw bucket = points the 
   broadband background (a worn bearing runs rough at the rotation rate too), so the 1 s RMS of the healthy signal grows by exactly
   g(t); bursts stay as they are. Same draws, same RNG, same onset, ramp and factor ranges, same arms, metrics, pass rule, seeds and H14.
   The first job-W run (old definition) finished but was deleted unread; the dev seeds are therefore still unseen for C9.
+- 2026-10-25: **machines named by role**, owner's request (the repo describes a general setup, not particular computers). From now
+  on the docs say **night host** for the machine that runs the nights and the verdict runs (named "the Mac Mini" in section 0 and in
+  earlier amendments) and **day host** for the machine of the daily pass and the offline checks (earlier "the Air"). Same machines as
+  before: the C2/C7 target machine in section 0 is the night host, and numbers from any other host are still labelled with that host
+  and do not count towards C2/C7. Earlier text above is not edited (the rule of this file); script, folder and run names that still
+  say `mini` or `air` are identifiers and are renamed separately. No threshold, verdict rule or hypothesis changes.

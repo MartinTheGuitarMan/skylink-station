@@ -88,7 +88,7 @@ the sensor datasheets and the site's physics, and reviewed by a person.
    "unsure", and its answer replaces the rule's only when a check passes. Measures lift where lift is still possible (R1 is at 0.94).
 5. **Retrieved examples.** Worked examples chosen by same stream and kind from reviewed cases vs random examples.
 
-Each is cheap: the facts and checks exist (`skylink.agent.review`), and the runs are minutes per model on the Air.
+Each is cheap: the facts and checks exist (`skylink.agent.review`), and the runs are minutes per model on the day host.
 
 ## What not to do
 No thinking mode for these jobs (108 s vs 2 s per case, not better). No number written by a model. No open vocabulary. No model in

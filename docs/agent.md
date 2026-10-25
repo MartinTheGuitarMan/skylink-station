@@ -49,7 +49,7 @@ raw output, parsed output, verdict and outcome (the 10 min MAE change after an a
 ## Models to try (LM Studio, already on disk)
 `google/gemma-3-1b` (1B), `google/gemma-4-e4b` (4B), `google/gemma-4-12b` (12B), `openai/gpt-oss-20b`
 (20B, reasoning). Smallest passing model counts as "good enough". Only one big model loaded at a
-time on the Air; the Mini decides what can run in parallel.
+time on the day host; the night host decides what can run in parallel.
 
 ## Dependencies
 Triage needs the base arm (alerts that can be backfill artefacts): built in iteration 2. Artefact cases still come from the Python replay twin, not the live run.

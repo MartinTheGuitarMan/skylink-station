@@ -1,6 +1,6 @@
 # Job R pilot, second model and R2 (dev seed 3, 2026-10-25)
 
-Air on power, LM Studio, 16k context, one model loaded at a time, same 8 windows as `reports/review-pilot-q14-2026-10-24.md` (46 alerts, 19 artefacts). Runs: `r-pilot-g4e` (R3, R4), `r-pilot-r2` (gemma-4-e4b R2), `r-pilot-r2-q14` (Qwen3-14B R2).
+Day host on power, LM Studio, 16k context, one model loaded at a time, same 8 windows as `reports/review-pilot-q14-2026-10-24.md` (46 alerts, 19 artefacts). Runs: `r-pilot-g4e` (R3, R4), `r-pilot-r2` (gemma-4-e4b R2), `r-pilot-r2-q14` (Qwen3-14B R2).
 
 | method | windows | macro-F1 [95% CI] | vs R1 [95% CI] | fault P / R | summary valid | invalid | p50 s/window | report bytes | overrides |
 |---|---|---|---|---|---|---|---|---|---|
