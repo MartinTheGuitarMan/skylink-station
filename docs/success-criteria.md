@@ -162,3 +162,42 @@ After every outage cycle, points stored in the InfluxDB raw bucket = points the 
   Compared with the stored runs without menus (`five-q14-t3`, `air-fs3`). Reported claim, not a verdict rule. "Menus help" for a
   model if three-class macro-F1 rises by >= **+0.03** with the paired bootstrap CI excluding 0. *H13:* both models gain, the 4B
   model more; nearly all of the gain is on temp and pressure.
+- 2026-10-25: added **C9 Slow degradation (job W)**, requested by the owner: an online learner may adapt to slow wear and never
+  alarm. Written before any job-W code or number exists. A separate, reported claim, not part of the verdict rules in section 2; no
+  threshold, verdict rule or hypothesis above changes, and the default scenario is unchanged (no wear event unless a scenario asks).
+  - *Event `wear`* (a process event: the machine changes, not the sensor). One per run, on vibration only, drawn from its own RNG
+    (`seed:vibration:wear`) so every other event and sample of a seed stays as it is until onset. The broadband background of the
+    vibration signal (not the 0.2 Hz line, not bursts) is multiplied by g(t) = 1 + (F - 1) u^2, u = (t - t0) / D clipped to [0, 1]:
+    no step, no spike, slow at first and faster later, then held at F to the end of the run (no repair). Onset t0 ~ U[3, 7] days,
+    ramp D ~ U[4, 14] days, final factor F ~ U[1.5, 3.0], so the rate (F - 1) / D is 0.04-0.5 per day. Sensor faults (spike, drift,
+    step, stuck, dropout) and bursts act on top of it as before; a stuck sensor hides it. Temperature is left out: the temp stream is
+    ambient air at the station, with no physical path from a bearing.
+  - *Runs.* 21 simulated days, all five streams, `config/scenario-wear.toml`. Each seed runs twice: with wear, and its healthy twin
+    (same seed, wear off), identical until t0. Offline 1 s aggregates as in job T; no Influx, no models served, light enough for the day.
+  - *Seeds.* Dev seeds 1-3, plus dev seeds **41-60**, added for job W only (same rules as dev seeds; never 101-105). Locked seeds stay
+    untouched and unread. Rules and thresholds below are fixed now and are not tuned on these seeds; a revised rule goes into a new
+    dated amendment and is tested on fresh dev seeds 61-80.
+  - *Arm (a), online only, as now.* The edge alert detector unchanged (jump / flat against its 60 s EWMA, see job T). It flags the
+    wear if, inside [t0, end], it raises a vibration alert that no other truth event explains (no fault or process event within 5 s)
+    and that the healthy twin does not raise within 5 s. Its online error: MAE of the detector's EWMA as a one-step forecast over the
+    last 24 h of the ramp, wear run / twin (reported, not an alert). River forecasters are not run: their errors feed no alert today.
+  - *Arm (b), reference comparison, rule fixed now.* Per stream: hourly median of the 1 s aggregate (NaN if < 1800 valid seconds).
+    Reference from hours 0-47 (the first 2 days, the C4 static window): mu_R = median of the 48 hourly medians, sigma_R =
+    max(1.4826 MAD of them, the job-T floor of the stream). Online level L(k) = median of the hourly medians of hours k-23..k (needs
+    >= 12). Gap g(k) = (L(k) - mu_R) / sigma_R. An alert starts when |g| > 4 for 6 consecutive hours and ends at the first hour with
+    |g| < 2. Scored from hour 48. **(b) frozen**: mu_R never moves (re-baseline only by an operator, e.g. after maintenance; never in
+    these runs). **(b') slow re-baseline**: each hour with no active alert and |g| <= 2, mu_R += (L(k) - mu_R) / 720 (30-day time
+    constant); sigma_R fixed. (b) is the arm the pass rule judges; (b') is reported beside it.
+  - *Metrics.* Detection: the first hour >= t0 in which the wear run's alert is active and the twin's is not; detection delay = that
+    hour's end - t0, in days; no such hour = a miss. Hold: share of hours from detection to the end of the run with the alert active.
+    False alerts per stream per day: alert starts in the twin runs (all five streams) outside excused stretches, divided by the days
+    not excused; excused = from t0 of a step or drift sensor fault on that stream to its t1 + 30 h (24 h window + 6 h persistence),
+    because there the gap is a real anomaly; alerts there are counted and reported apart. Arm (a): flags per run, ever flagged or not,
+    and the error ratio. All pooled over the 23 seeds, with per-seed values in the note.
+  - *Pass rule, arm (b) on vibration.* "Flags the degradation, does not adapt it away" if all four hold: detection in >= **90 %** of
+    wear runs; median detection delay <= **5 days**; hold >= **0.90** pooled over detected runs; false alerts on vibration <= **0.05 per
+    day** pooled over the twins. Otherwise "not shown", with the numbers. Arm (a) "adapts it away" if it flags in < 10 % of runs.
+  - *H14 (owner's guess, before runs).* The online-only arm never flags the wear (0 of 23); the reference comparison flags it, with a
+    delay of days. *Added before runs:* the online error ratio rises to about F by the end of the ramp, unseen by the detector; (b') flags
+    later than (b) or misses the slowest ramps; arm (b) passes on vibration but gives more than 0.05 false alerts per day on pressure
+    (slow weather and fronts are not in a 2-day reference), so it is a rule for machine streams, not weather.
