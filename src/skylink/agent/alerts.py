@@ -63,10 +63,10 @@ class Detector:
         return alert
 
 
-def aggregate_series(seed: int, days: float, streams: list[str], fault_rate_scale: float = 1.0):
+def aggregate_series(seed: int, days: float, streams: list[str], fault_rate_scale: float = 1.0, wear: dict | None = None):
     """1 s aggregates per stream plus the event plan. (Simulates the raw rate: slow for vibration.)"""
     dur = days * 86400.0
-    plan = build_plan(seed, dur, streams, fault_rate_scale)
+    plan = build_plan(seed, dur, streams, fault_rate_scale, wear)
     out = {}
     for s in streams:
         spec, gen = SPECS[s], StreamGen(SPECS[s], seed, StreamPlan(plan, s))

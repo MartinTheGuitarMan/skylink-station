@@ -14,6 +14,8 @@ import numpy as np
 FAULT_KINDS = ("stuck", "spike", "drift", "step", "dropout")
 # Process events: change the world (the model should follow them).
 PROCESS_KINDS = ("seasonal", "front", "gust", "burst", "cloud")
+# Slow degradation (C9): the machine wears; to be flagged, not followed. Off unless a scenario asks.
+DEGRADATION_KINDS = ("wear",)
 DAY_S = 86400.0
 
 
@@ -113,8 +115,25 @@ def _process_events(rng, stream, duration_s, start_id):
     return out, eid
 
 
-def build_plan(seed: int, duration_s: float, streams, rate_scale: float = 1.0) -> list[Event]:
-    """Deterministic plan: the same (seed, duration, streams, rate_scale) always gives the same events."""
+def _wear_events(seed, stream, duration_s, wear, start_id):
+    """One wear ramp: mag = final background factor F, aux = ramp duration D (s); held at F after t1 = t0 + D.
+    Own RNG, so turning wear on changes no other event of the seed."""
+    digest = hashlib.sha256(f"{seed}:{stream}:wear".encode()).digest()
+    rng = np.random.default_rng(int.from_bytes(digest[:8], "little"))
+    out: list[Event] = []
+    eid = start_id
+    for _ in range(int(wear.get("count", 1))):
+        t0 = rng.uniform(*wear["onset_days"]) * DAY_S
+        ramp = rng.uniform(*wear["ramp_days"]) * DAY_S
+        factor = rng.uniform(*wear["factor"])
+        if t0 < duration_s:
+            out.append(Event(eid, stream, "wear", float(t0), float(min(t0 + ramp, duration_s)), float(factor), float(ramp)))
+            eid += 1
+    return out, eid
+
+
+def build_plan(seed: int, duration_s: float, streams, rate_scale: float = 1.0, wear: dict | None = None) -> list[Event]:
+    """Deterministic plan: the same (seed, duration, streams, rate_scale, wear) always gives the same events."""
     events: list[Event] = []
     eid = 0
     for stream in streams:
@@ -124,6 +143,11 @@ def build_plan(seed: int, duration_s: float, streams, rate_scale: float = 1.0) -
         f, eid = _fault_events(rng, stream, duration_s, rate_scale, eid)
         p, eid = _process_events(rng, stream, duration_s, eid)
         events += f + p
+    if wear:  # after all other events, so their ids do not move either
+        for stream in streams:
+            if stream in wear.get("streams", ["vibration"]):
+                w, eid = _wear_events(seed, stream, duration_s, wear, eid)
+                events += w
     return sorted(events, key=lambda e: (e.t0, e.id))
 
 

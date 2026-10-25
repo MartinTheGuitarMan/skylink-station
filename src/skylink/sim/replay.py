@@ -40,7 +40,7 @@ def epoch_us(cfg: dict) -> int:
 def make_gens(cfg: dict) -> tuple[dict[str, StreamGen], list]:
     r = cfg["run"]
     duration_s = r["duration_days"] * 86400.0
-    plan = build_plan(r["seed"], duration_s, r["streams"], r.get("fault_rate_scale", 1.0))
+    plan = build_plan(r["seed"], duration_s, r["streams"], r.get("fault_rate_scale", 1.0), cfg.get("wear"))
     gens = {s: StreamGen(SPECS[s], r["seed"], StreamPlan(plan, s)) for s in r["streams"]}
     return gens, plan
 
