@@ -635,3 +635,12 @@ The comparison idea works when its reference is clean; taking the first 2 days b
 **Decision.** Rule unchanged. Backlog: a checked reference, pre-registered on fresh dev seeds 61-80. Recipe section 3 updated.
 
 Iteration 20: finding (C9 dev reading; recipe claim on wear added). Open ideas: 21 (BACKLOG.md items and sub-items, 0 not counted).
+
+## Backlog triage (2026-10-25, with the owner)
+
+**Why.** The stop rule needs every idea tested or written off; about 20 were open. **Done.** 7 closed as already done, 10 written off
+with reasons (in `BACKLOG.md`), 7 kept; road steps 1d and 3 updated. The wear follow-up (checked reference) moved to the next
+experiment. **Decision.** Remaining work: the locked verdict and its inputs, the C5b CI, job R's 40 windows, the inbox read-out,
+knowledge-or-model, the teacher loop, ARF cost.
+
+Triage: no finding (backlog only). Open ideas: 7 (BACKLOG.md, Open).
