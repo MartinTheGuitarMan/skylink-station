@@ -1,8 +1,8 @@
 #!/bin/bash
-# Delete the raw sensor points of runs whose purpose is served (scored, written up, or void), on the Mini.
+# Delete the raw sensor points of runs whose purpose is served (scored, written up, or void), on the night host.
 # Keeps each run's truth events (C3/C4 need them) and all forecasts. Refuses locked runs. The simulator can recreate the raw
 # data of any run from its seed (C7). InfluxDB frees the space at its next compactions, not at once.
-#   scripts/drop-raw.sh mini-smoke-1 base-smoke-1 ...          (run on the Mini, in the repo)
+#   scripts/drop-raw.sh night-smoke-1 base-smoke-1 ...          (run on the night host, in the repo)
 set -eu
 cd "$(dirname "$0")/.."
 set -a; . ./.env; set +a

@@ -3,7 +3,7 @@
 
     uv run python scripts/escalation_eval.py
 
-Inputs (all dev, not tracked): runs/agent/cases.json, the stored runs air-fs3 (edge gemma-4-e4b 3-shot, voter Jev 0.8B),
+Inputs (all dev, not tracked): runs/agent/cases.json, the stored runs day-fs3 (edge gemma-4-e4b 3-shot, voter Jev 0.8B),
 five-gptoss-t3 and five-q14-t3 (local shores), runs/escalation/{key,claude-answers}.json (Claude's blind answers, Q -> case).
 Writes runs/escalation/result.json and prints the report tables."""
 import json
@@ -26,8 +26,8 @@ def preds(run, name):
 
 def main():
     cases = {c["id"]: alerts.Case(**c) for c in json.loads((RUNS / "cases.json").read_text())}
-    ids = [i for i in json.loads((RUNS / "air-t1" / "result.json").read_text())["ids"] if "art" not in i]
-    edge, voter = preds("air-fs3", "e4b"), preds("air-fs3", "j08")
+    ids = [i for i in json.loads((RUNS / "day-t1" / "result.json").read_text())["ids"] if "art" not in i]
+    edge, voter = preds("day-fs3", "e4b"), preds("day-fs3", "j08")
     key = json.loads((OUT / "key.json").read_text())
     claude = {key[q]: lab for q, lab in json.loads((OUT / "claude-answers.json").read_text()).items()}
     shores = {"Claude": claude, "gpt-oss-20b": preds("five-gptoss-t3", "gptoss"), "Qwen3-14B": preds("five-q14-t3", "q14"),

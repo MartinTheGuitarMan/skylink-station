@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Verdict pipeline (road step 4; rules and open choices in src/skylink/verdict.py).
 
-On the Mini (InfluxDB), one JSON per run into runs/verdict/<label>/:
+On the night host (InfluxDB), one JSON per run into runs/verdict/<label>/:
     uv run python scripts/verdict.py collect --label locked --runs locked-101,locked-102,... [--c2-run locked-1x]
-Anywhere (pure), after scripts/mini-sync.sh pull on the Air the files are under runs/mini/verdict/<label>/:
-    uv run python scripts/verdict.py decide --label locked [--dir runs/mini/verdict/locked] [--triage runs/agent/<id>/result.json]
+Anywhere (pure), after scripts/night-sync.sh pull on the day host the files are under runs/night/verdict/<label>/:
+    uv run python scripts/verdict.py decide --label locked [--dir runs/night/verdict/locked] [--triage runs/agent/<id>/result.json]
         [--bench runs/agent/proposals-<id>/result.json] [--replicate locked-101:locked-101b,...]
 Writes <dir>/verdict.json and reports/verdict-<label>.md. Dev labels (dry runs) may use any dev run; a label starting with
 "locked" must be given locked runs only, and every locked run it reads is logged in the journal by the pass that runs it."""

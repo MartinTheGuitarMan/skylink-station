@@ -3,7 +3,7 @@
 # niced, resumable: every run resumes from its checkpoint and stops cleanly at the window end.
 #
 # queue.txt lines: <run-id> <scenario.toml> <seed> <days> <speed> [edge-config]   (# comments ok)
-# Installed on the Mini as the system daemon se.skylink.nightly (ops/README.md).
+# Installed on the night host as the system daemon se.skylink.nightly (ops/README.md).
 # Stops early when free disk drops below MIN_FREE_GB (default 3) or the colima VM disk that holds InfluxDB below MIN_VM_FREE_GB (6). Writes runs/last-night.txt: one line per
 # item (ok / stopped / cut / failed), read by the daytime loop (docs/daily-loop.md).
 set -u

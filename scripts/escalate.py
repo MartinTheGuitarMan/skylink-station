@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """Daily-pass escalation inbox (C5e inbox run; docs/escalation.md).
 
-On the Mini (nightly.sh calls these):
+On the night host (nightly.sh calls these):
     uv run python scripts/escalate.py night      apply answers that arrived, score, then ask for the next queued night
-On the Air (the daily pass, docs/daily-loop.md):
-    uv run python scripts/escalate.py pending    question files pulled from the Mini that have no answers yet
+On the day host (the daily pass, docs/daily-loop.md):
+    uv run python scripts/escalate.py pending    question files pulled from the night host that have no answers yet
     uv run python scripts/escalate.py show <night>   the questions as text, to answer blind
     uv run python scripts/escalate.py check <night>  validate runs/escalation/outbox/<night>.jsonl before sending
-    scripts/mini-sync.sh answers                 send the outbox to the Mini
+    scripts/night-sync.sh answers                 send the outbox to the night host
 
 config/escalation-queue.txt lines: <night-id>|<seed 11-30>|<days>|<budget>; one new night is asked per run."""
 import argparse
@@ -17,9 +17,9 @@ from pathlib import Path
 
 from skylink.agent import inbox
 
-ROOT = Path("runs/escalation")            # on the Mini
-PULLED = Path("runs/mini/escalation")     # on the Air, after mini-sync.sh pull
-OUTBOX = ROOT / "outbox"                  # on the Air: answers written by the daily pass
+ROOT = Path("runs/escalation")            # on the night host
+PULLED = Path("runs/night/escalation")    # on the day host, after night-sync.sh pull
+OUTBOX = ROOT / "outbox"                  # on the day host: answers written by the daily pass
 QUEUE = Path("config/escalation-queue.txt")
 
 

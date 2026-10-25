@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Comparable test of one local model on the Air: load at a fixed context, then speed and memory, the honesty set,
+"""Comparable test of one local model on the day host: load at a fixed context, then speed and memory, the honesty set,
 raw JSON adherence (jobs E and P without constrained decoding), job T (zero-shot and 3-shot) and jobs E, N, P through the
 existing scripts. Dev cases only. One model per call; the caller runs the models one after another.
 

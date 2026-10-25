@@ -1,6 +1,6 @@
 """Verdict pipeline (road step 4): every C1-C8 number and the verdict lines of section 2 of docs/success-criteria.md.
 
-Two steps (scripts/verdict.py). `collect` runs on the Mini, where InfluxDB is, and writes one JSON per run. `decide` is pure:
+Two steps (scripts/verdict.py). `collect` runs on the night host, where InfluxDB is, and writes one JSON per run. `decide` is pure:
 it pools the runs (seeds), applies the rules and writes the report. This module holds `decide`; the tests feed it synthetic runs.
 
 Choices the criteria leave open, fixed on 2026-10-24 before any locked run (dry-run on dev seeds only):
@@ -10,7 +10,7 @@ Choices the criteria leave open, fixed on 2026-10-24 before any locked run (dry-
 - C1: pooled skill over the hourly blocks of all runs (warm-up excluded, real-time forecasts only, all phases) =
   1 - sum(err) / sum(persistence err); 95% CI by block bootstrap over those hours (1 h blocks, 2000). Mean and sd of the per-run
   skill are reported. A stream passes if some (River model, horizon) has pooled skill >= 0.10 with CI low > 0. Holds: >= 3 streams.
-- C2: from the `resource` measurement of a designated run at 1x on the Mini: mean cpu_pct <= 50 (0.5 core), max rss_mb <= 512,
+- C2: from the `resource` measurement of a designated run at 1x on the night host: mean cpu_pct <= 50 (0.5 core), max rss_mb <= 512,
   p99 over the samples of step_ms_p99 <= 50; compression: every scored run finished at speed >= 60. No 1x run: not measured,
   C2 does not hold.
 - C3: front, step and drift_end on the edge arm; outage_end on each base arm, and the base arm (backfill strategy) with the most

@@ -1,10 +1,10 @@
 """Daily-pass escalation inbox (C5e inbox run in docs/success-criteria.md; design in docs/escalation.md).
 
-At night the Mini simulates one day of a fresh dev seed (11-30), labels every edge alert with the rules sent down and writes
-questions for the residue (`ask`). The daily pass on the Air (Claude) answers them blind; `mini-sync.sh answers` sends the answers
-back. The next night the Mini applies them (`apply`) and scores every applied night against the simulator's truth (`score`).
+At night the night host simulates one day of a fresh dev seed (11-30), labels every edge alert with the rules sent down and writes
+questions for the residue (`ask`). The daily pass on the day host (Claude) answers them blind; `night-sync.sh answers` sends the answers
+back. The next night the night host applies them (`apply`) and scores every applied night against the simulator's truth (`score`).
 
-Files under the root (runs/escalation on the Mini):
+Files under the root (runs/escalation on the night host):
   inbox/<night>.jsonl      questions: facts and the edge's label, never the truth
   ledger/<night>.jsonl     every alert of the night with the edge's label and whether it was asked
   ledger/<night>.meta.json seed, days, budget, asked-at time

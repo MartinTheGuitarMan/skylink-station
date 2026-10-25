@@ -2,7 +2,7 @@
 """Profile local models on the jobs this project needs: triage (3-shot), failure explanation, situation notes.
 
     uv run --extra agent python scripts/model_profile.py --models g1b=google/gemma-3-1b,e4b=google/gemma-4-e4b \
-        --id air-profile-1 --until 06:00
+        --id day-profile-1 --until 06:00
 
 Dev cases only. Per model: macro-F1 / accuracy per job, valid-output rate (schema + checks in code), latency, and the
 memory LM Studio reports for the loaded model. Writes runs/agent/<id>/profile.json and reports/model-profile-<id>.md."""

@@ -58,7 +58,7 @@ def test_apply_and_score(tmp_path):
 
 
 def test_score_before_any_night(tmp_path):
-    root = tmp_path / "escalation"                                               # the Mini's first night: no folder yet
+    root = tmp_path / "escalation"                                               # the night host's first night: no folder yet
     assert inbox.score(root) == {"nights": []}
     assert (root / "summary.md").exists()
 
