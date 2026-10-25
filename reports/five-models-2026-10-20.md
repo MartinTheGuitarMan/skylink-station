@@ -1,7 +1,7 @@
-# Five local models on the Air, 2026-10-20
+# Five local models on the day host, 2026-10-20
 
-Dev cases only (seeds 1-3, no locked seed touched). One model loaded at a time on a MacBook Air (24 GB), LM Studio, context 4096, `nice`d,
-the Air otherwise idle. Four of the five candidates were run; **Qwen3.5-9B MLX 8-bit could not be tested** (see "Not run").
+Dev cases only (seeds 1-3, no locked seed touched). One model loaded at a time on a day host (24 GB), LM Studio, context 4096, `nice`d,
+the day host otherwise idle. Four of the five candidates were run; **Qwen3.5-9B MLX 8-bit could not be tested** (see "Not run").
 Harness: `scripts/five_models.py` (load, memory, speed, honesty, raw JSON, thinking arm) around the existing `scripts/agent_eval.py`
 (job T through mcp-minions, constrained decoding) and `scripts/model_profile.py` (jobs E and N). Report tables: `scripts/five_models_report.py`.
 Raw outputs are in `runs/agent/five-models/` (not tracked). 95% CIs are percentile bootstraps over cases (2000 resamples) computed by the
@@ -51,7 +51,7 @@ Rules baseline: 0.630 [0.58, 0.68]
 
 Notes on the tables. "Peak RSS" undercounts Metal memory (weights live in GPU-wired memory), so read the free-memory columns: system free
 memory went from about 80 % to the "loaded" value when the model was resident, and "min free" is the lowest seen during the whole run. The
-repo's memory guard (40-45 % free) would refuse gpt-oss-20b and LFM2 on an Air that is doing anything else. The 2.3k-token prompt column is
+repo's memory guard (40-45 % free) would refuse gpt-oss-20b and LFM2 on a day host that is doing anything else. The 2.3k-token prompt column is
 time to first token for a cold prompt (the second identical prompt is cached and much faster). Ministral is a GGUF on the llama.cpp path,
 which is why it is the slowest of the four per token. Qwen3-14B runs with thinking off in all main-table rows (see below); gpt-oss-20b has
 no off switch and reasons briefly by default. Job T is run through constrained decoding, so "invalid 0" for all models says only that the
@@ -118,7 +118,7 @@ The other planned Qwen, Qwen3.5-9B, could not be loaded, so there is no second p
   mandatory for it.
 - **Notes (job N).** Validity (every number traceable to the input, at most 80 words) is 1.0 for gpt-oss and Qwen3-14B, 0.975 Ministral, 0.80 LFM2.
 - **Speed.** LFM2 (24B total, 2B active) is fastest at about 79 tok/s, then gpt-oss 45, Qwen3-14B 15, Ministral 10.
-- **Cheapest useful pick for the Air.** Qwen3-14B (8 GB, 46 % free left when loaded, thinking off): best all-round across triage, honesty and E/N validity.
+- **Cheapest useful pick for the day host.** Qwen3-14B (8 GB, 46 % free left when loaded, thinking off): best all-round across triage, honesty and E/N validity.
   gpt-oss-20b is the triage specialist with examples, but its memory footprint (free memory fell to 16 %) rules it out while the Docker VM runs.
   LFM2 is fast but not trustworthy as a source of facts.
 
@@ -133,5 +133,5 @@ The other planned Qwen, Qwen3.5-9B, could not be loaded, so there is no second p
   here are from the clean second run; the aborted files are kept under `runs/agent/five-models/lfm2-aborted/`.
 - Ministral and LFM2 were downloaded while Qwen3-14B's thinking arm ran (network only); the Ministral GGUF download had to be restarted
   from the Hugging Face URL because the LM Studio catalogue name used in the first attempt does not exist.
-- Qwen3-14B's main run overlapped a download as well; speed numbers are unaffected (local compute), the Air was otherwise idle.
+- Qwen3-14B's main run overlapped a download as well; speed numbers are unaffected (local compute), the day host was otherwise idle.
 - The honesty set is 2 repeats per prompt with hand grading by one grader: differences of one repeat are noise.

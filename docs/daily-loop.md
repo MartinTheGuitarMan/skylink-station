@@ -1,13 +1,12 @@
 # Daily loop
 
 How the experiment moves without the owner. One pass a day on the day host (a scheduled Claude task in the
-morning), after the night on the night host. (Script and folder names
-still say `mini`, the night host's name; they are renamed separately.) Do one pass, report, stop. The rules in `CLAUDE.md` still hold.
+morning), after the night on the night host. Do one pass, report, stop. The rules in `CLAUDE.md` still hold.
 
 ## The pass
-1. **Look.** `git status -sb`, `git log --oneline -5`, then `scripts/mini-sync.sh status` and `scripts/mini-sync.sh pull`.
-   Read `runs/mini/last-night.txt` and whatever is new under `runs/mini/` (`agent/proposals-*.txt`, `*/summary.json`,
-   `reports/`). If the night host has commits missing here, merge `mini/main` first.
+1. **Look.** `git status -sb`, `git log --oneline -5`, then `scripts/night-sync.sh status` and `scripts/night-sync.sh pull`.
+   Read `runs/night/last-night.txt` and whatever is new under `runs/night/` (`agent/proposals-*.txt`, `*/summary.json`,
+   `reports/`). If the night host has commits missing here, merge `night/main` first.
    **Disk watch** (owner, 2026-10-24: keep the Influx raw data, but watch it): `status` prints the night host's free disk and the Influx
    data size. Put both in the report's first line. Under 20 GB free, say so under `Behöver dig:`; the fix on the table is to drop a
    run's raw data after its C8 check (backlog), which is the owner's call. Never delete data on the night host to make room.
@@ -20,8 +19,8 @@ still say `mini`, the night host's name; they are renamed separately.) Do one pa
    Answer every question blind, from its facts, the station physics in `docs/slm-backend.md` and the edge's label: one JSON line
    per question in `runs/escalation/outbox/<night>.jsonl`, `{"q", "label": real_event|sensor_fault, "kind", "why" (<= 120 chars),
    "keep_as_example": true|false}`. Mark an example only when the facts make the case clear. Never run the simulator, open
-   `runs/mini/escalation/summary.*`, or look up truth for a night before its answers are written. Then
-   `uv run python scripts/escalate.py check <night>` (must say no errors) and send in step 5. Read `runs/mini/escalation/summary.md`
+   `runs/night/escalation/summary.*`, or look up truth for a night before its answers are written. Then
+   `uv run python scripts/escalate.py check <night>` (must say no errors) and send in step 5. Read `runs/night/escalation/summary.md`
    for nights the night host has applied: one journal line per night; read the pooled result only after 5 nights. If the answers show a
    pattern the rules sent down miss, propose the rule under `Behöver dig:`; the edge's rules stay frozen during the inbox run unless
    an amendment says otherwise.
@@ -32,7 +31,7 @@ still say `mini`, the night host's name; they are renamed separately.) Do one pa
    3 days, five streams, gemma3:4b + qwen3:8b about 6 h (qwen3:8b is 5 of those). A cut simulation or agent eval resumes; a cut
    job P bench starts over, so never queue one that does not fit. Do not leave a night empty when something useful fits:
    a replicate on another dev seed is better than nothing.
-5. **Ship.** `scripts/mini-sync.sh answers` (escalation answers, any time; the night host applies them next night). Commit (one logical change each), then `scripts/mini-sync.sh push`. It refuses while a night job runs; then
+5. **Ship.** `scripts/night-sync.sh answers` (escalation answers, any time; the night host applies them next night). Commit (one logical change each), then `scripts/night-sync.sh push`. It refuses while a night job runs; then
    push after 06:00 the next day, or let tomorrow's pass do it. Never push to GitHub: the owner does that.
 6. **Report** (the final message, in Swedish, short): what the night gave (1-3 lines), what was built, what runs tonight, and at
    most one line `Behöver dig:` with the default you will take if there is no answer within two passes. Only things the

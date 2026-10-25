@@ -4,12 +4,12 @@ Format: what I tried, why, result, decision. Newest last.
 
 ## Iteration 0 (2026-10-14): criteria, scaffold, one stream end to end
 
-**Context found.** This machine is the MacBook Air, not the Mac Mini the brief names. Docker was
+**Context found.** This machine is the day host, not the night host the brief names. Docker was
 installed (colima, default profile 2 CPU / 2 GB, stopped). LM Studio is running with
 gemma-3-1b, gemma-4-e4b (4B), gemma-4-12b, gpt-oss-20b; Ollama is installed but its server is
 down. mcp-minions (v0.2, public repo, not touched) is clean on main. **Decision:** develop on the
-Air in a separate colima profile `skylink` (4 CPU, 6 GB, default profile untouched); everything is
-config-as-code, so moving to the Mini is a `make up`. Numbers from the Air do not count for C2.
+Day host in a separate colima profile `skylink` (4 CPU, 6 GB, default profile untouched); everything is
+config-as-code, so moving to the night host is a `make up`. Numbers from the day host do not count for C2.
 
 **Did.** Pre-registered criteria and hypotheses first (commit 7515c2a, before any code). Then:
 simulator for all five streams with a seeded event plan and ground truth; replayer (paced,
@@ -48,7 +48,7 @@ Hoeffding adaptive tree (`hat`). The engine writes the persistence error of the 
 error line, so skill is paired by construction (`skylink.analysis`: hourly sums, block bootstrap).
 `scripts/bench.py` runs the engine offline on dev seeds. Per-model CPU cost per step is measured and
 exported. All five streams run through the full stack at 60x for one simulated hour: river ~0.45 core
-with 9 models (Air VM), p99 step 13 ms (SNARIMAX forecasting steps).
+with 9 models (day host VM), p99 step 13 ms (SNARIMAX forecasting steps).
 
 **Dev seed 1, 4 simulated days, 2 scored (low power; no verdict; dev seed only).** Skill vs persistence:
 | stream | lin_lag | note |
@@ -76,32 +76,32 @@ with 9 models (Air VM), p99 step 13 ms (SNARIMAX forecasting steps).
 **Decisions.** Keep the simulator as is (not tuned to flatter a baseline). Default model set is in
 `config/edge.toml`. Next: base arm and backfill strategies (RQ1), a drift mechanism that fits
 increment models (ADWIN on volatility-normalised error, or exponentially forgetting least squares),
-then the agent layer. Nothing run in the night window; the launchd job and the Mini move wait for a yes.
+then the agent layer. Nothing run in the night window; the launchd job and the night host move wait for a yes.
 
-## Move to the Mac Mini (2026-10-14, 23:00)
+## Move to the night host (2026-10-14, 23:00)
 
-Approved by the owner. Mini (8 cores, 16 GB, 94 GB free) had no container runtime: installed
+Approved by the owner. Night host (8 cores, 16 GB, 94 GB free) had no container runtime: installed
 colima, docker, docker-compose, uv, node with Homebrew (user level, no sudo). colima VM 4 CPU / 6 GB.
 `~/.docker/config.json` pointed at a missing Docker Desktop credential helper; fixed it (backup:
 `config.json.bak-skylink`) and added the compose plugin path. Repo copied with git bundle (no remote).
-`make up` works; 17 tests pass; five-stream smoke at 60x: stream hash identical to the Air
-(267cdade...), so the simulator is reproducible across machines. Mini load during that run:
+`make up` works; 17 tests pass; five-stream smoke at 60x: stream hash identical to the day host
+(267cdade...), so the simulator is reproducible across machines. Night host load during that run:
 river 32 %, nodered 17 % of a core, p99 step 22 ms, no model crashes.
 Installed `~/Library/LaunchAgents/se.skylink.nightly.plist` (23:00 daily, niced, ends 06:00).
 Started the first run by hand at 23:09 (inside the window): `dev-s1`, seed 1, 7 days, 60x, all five
-streams, default models. Air stack stopped and its colima profile deleted.
-Open: the job only runs while the main user is logged in on the Mini (it is, console session).
+streams, default models. Day host stack stopped and its colima profile deleted.
+Open: the job only runs while the main user is logged in on the night host (it is, console session).
 
 ## First night, dev-s1 (2026-10-14 23:09 to 2026-10-15 01:57)
 
-Seed 1, 7 simulated days, 60x, all five streams, 10 models, on the Mini. Finished in 2 h 48 m, 301 558
+Seed 1, 7 simulated days, 60x, all five streams, 10 models, on the night host. Finished in 2 h 48 m, 301 558
 posts, 43 Skylink outages, no model crashes seen at the start; stream hash 91d31f49... (dev seed).
 **C8:** raw points in InfluxDB equal points emitted for all five streams (wind counts double
 because it has two fields). **Scores** (5 scored days, `reports/dev-s1-scores.md`) match the 4-day
 bench: temp lin_lag +5 %/+15 %/+23 %/+41 % at 10/60/600/3600 s, online beats static at 600/3600 s
 (+23 vs +20, +41 vs +35); pressure no skill beyond 60 s; solar worse than persistence for every
 River model (SNARIMAX is +2 % at best); vibration +18-20 %; hat loses on pressure and solar.
-**Incident:** the Mini rebooted before 21:05 on 2026-10-15 (uptime 3 min when I looked). After a reboot
+**Incident:** the night host rebooted before 21:05 on 2026-10-15 (uptime 3 min when I looked). After a reboot
 nobody is logged in, so colima is down and a per-user launchd job cannot run. In-memory counters
 (Node-RED link state, river stats) were lost; InfluxDB data survived. I restarted colima and the stack by
 hand. Needs a decision: auto-login for the main user, or accept manual start after reboots.
@@ -114,7 +114,7 @@ the dev-seed findings are not seed noise: lin_lag temp +5/+15/+21/+37 %, wind +6
 vibration +16-21 %, pressure about 0, solar -17 to -24 %; online beats static on temp at long horizons
 (+37 vs +26 % at 3600 s); reset and ADWIN-challenger variants lose heavily at h >= 60 on both seeds;
 HAT collapses on solar (-6x to -20x); seasonal anchor is worse than persistence below 1 h.
-The Mini rebooted again around 16:05 on 2026-10-16 with nobody logged in (uptime 5 h at 21:08); colima
+The night host rebooted again around 16:05 on 2026-10-16 with nobody logged in (uptime 5 h at 21:08); colima
 and all four containers came back on their own. That is the intended behaviour of
 `se.skylink.colima`. No data loss. Queue is empty.
 
@@ -136,7 +136,7 @@ coverage (real-time forecasts relative to the edge) per phase.
 2. A new outage can start before the previous replay finished; the sorted arm overwrote its hold and
    dropped data. Holds now accumulate (unit-tested).
 **Unit tests:** 24 pass (gate notices, three strategies on a scripted outage, overlapping replays).
-**Mini smoke (1 simulated hour, 5 streams, 7 outages, not a result):** steps processed per stream
+**Night host smoke (1 simulated hour, 5 streams, 7 outages, not a result):** steps processed per stream
 edge 3286-3600; ignore 1596-1760 (outage + replay never processed); arrival and sorted = all.
 **Decision.** Queued `dev-s3` (seed 3, 7 days, 60x) for tonight: first multi-day run with the base arms.
 Pre-registered expectation stays H3: arrival order hurts most in the 10 min after link-up, sorted
@@ -155,10 +155,10 @@ rejected, 3 rollbacks. A bad agent really can hurt. No live model has been calle
 
 ## Local models and Jev wired in (2026-10-16 evening)
 
-Ollama installed on the Mini (Homebrew, with approval): models gemma3:1b, gemma3:4b, qwen3:4b; the
+Ollama installed on the night host (Homebrew, with approval): models gemma3:1b, gemma3:4b, qwen3:4b; the
 server is started by the nightly job if it is not running (optional daemon `ops/se.skylink.ollama.plist`
-needs the sudo installer). mcp-minions cloned to the Mini. Air: LM Studio server started for the run only.
-Jev (TypeSafe's System One decision model, jev-style 0.4.0, 0.8B v3, MLX) runs on the Air at port 8765 and
+needs the sudo installer). mcp-minions cloned to the night host. Day host: LM Studio server started for the run only.
+Jev (TypeSafe's System One decision model, jev-style 0.4.0, 0.8B v3, MLX) runs on the day host at port 8765 and
 is used through mcp-minions' `systemone` backend (`config/roster-jev.json`).
 **Live smoke, 18 triage cases each:** gemma3:1b collapses to one class (F1 0.17); gemma-4-e4b F1 0.57;
 Jev 0.8B 0.69 (all within noise at n=18, rules 0.648).
@@ -167,9 +167,9 @@ p50 0.16 s. It finds 58 of 175 faults. A rules-first hybrid (rules decide artefa
 decides the rest) gets 0.643. Its confidence is **not** calibrated on this task: accuracy among the 20 %
 most confident answers is 0.37, overall 0.56. So the shortcut-by-confidence mechanism has nothing to
 work with here, zero-shot. A decision model needs domain data (or a better description of the numbers).
-**Night queue 2026-10-16/17:** Mini: `dev-s3` (7 days with base arms), then `mini-t1` (gemma3 1b/4b, qwen3 4b,
-100 cases per class). Air (started by hand under caffeinate, waits for 23:00): gemma-3-1b, gemma-4-e4b,
-Jev 0.8B, then gemma-4-12b, then gpt-oss-20b, same cases (seed 7 balanced). The Air must stay awake and
+**Night queue 2026-10-16/17:** night host: `dev-s3` (7 days with base arms), then `night-t1` (gemma3 1b/4b, qwen3 4b,
+100 cases per class). Day host (started by hand under caffeinate, waits for 23:00): gemma-3-1b, gemma-4-e4b,
+Jev 0.8B, then gemma-4-12b, then gpt-oss-20b, same cases (seed 7 balanced). The day host must stay awake and
 plugged in; its job is not installed as a launchd agent.
 
 ## Night 2026-10-16/17 results
@@ -183,9 +183,9 @@ disorder. The price of waiting for a clean replay (sorted) is coverage (65 % vs 
 the base arms produce nothing in real time (coverage 0-12 %), which is the actual degradation. Table: `reports/dev-s3-base.md`.
 **Triage, local models:** see `reports/agent-triage-dev-2026-10-17.md`. No model beats the rules zero-shot (Jev 0.8B 0.599, e4b 0.527,
 12B 0.491 vs rules 0.630). 0 invalid outputs everywhere.
-**Process issues:** (1) the Mini evaluation overran the 06:00 window (qwen3:4b at about 97 s per case); I stopped it at 08:30 and
+**Process issues:** (1) the night host evaluation overran the 06:00 window (qwen3:4b at about 97 s per case); I stopped it at 08:30 and
 scored the logged answers. The eval script needs a deadline (`--until`) like the simulator. (2) gpt-oss-20b was skipped by the
-memory guard on the Air (34 % free). (3) The Mini ran under heavy memory pressure (153 MB unused, 6.9 GB compressed) during the
+memory guard on the day host (34 % free). (3) The night host ran under heavy memory pressure (153 MB unused, 6.9 GB compressed) during the
 Ollama run on top of the 6 GB Docker VM.
 
 ## Iteration 4 (2026-10-18): drift mechanism for increment models (RQ2), built, run queued
@@ -211,7 +211,7 @@ signal for an error detector.
    challenger, no probation. Detections and boosts are logged in the `drift` measurement (kinds `detected`, `boost`).
 Unit-tested (`tests/test_drift.py`, 45 tests pass): forgetting follows a sign flip where no forgetting does not, the normalised detector
 stays quiet on a 4x slow swing in error scale where the raw one fires at least 3 times, and fires on a sudden
-5x jump; stuck-sensor input stays finite. Cost on the Air, 4 temp horizons: 37-39 us per step per model
+5x jump; stuck-sensor input stays finite. Cost on the day host, 4 temp horizons: 37-39 us per step per model
 (`lin_lag` 48 us), no crashes.
 
 **Honest expectation.** The pre-registered H5 (online beats static by >= 15 % in the hour after a
@@ -222,8 +222,8 @@ detector. The detector variant earns its place only if it beats `lin_rls` itself
 **Plan.** Queued `dev-s1-drift` and `dev-s2-drift` (seeds 1 and 2, 7 days, 60x, default scenario) in
 `config/queue.txt`; the three new models are in the default model set beside `lin_lag`, `lin_lag_static`,
 `lin_lag_adwin`, `lin_lag_reset`, so every comparison is paired inside one run. Dev seeds only, nothing locked.
-Resumable across nights (about 3 h each). Not run on the Air. **The Mini needs the new code first:** the
-river image bakes the source in, so after syncing this repo to the Mini run `make up` (rebuild) once;
+Resumable across nights (about 3 h each). Not run on the day host. **The night host needs the new code first:** the
+river image bakes the source in, so after syncing this repo to the night host run `make up` (rebuild) once;
 the nightly job does a plain `docker compose up -d` and would otherwise skip the new models.
 **Read-out (scores with `skylink.analysis`, 2 day warm-up, per stream and horizon):**
 - *Support for forgetting (RQ2):* `lin_rls` or `lin_rls_slow` skill >= `lin_lag_static` + 0.03 on temp at 600 and 3600 s on **both** seeds,
@@ -246,7 +246,7 @@ Reduction = 1 - MAE_online / MAE_static, pooled over windows, 95% CI by resampli
 rule: >= 15 % reduction in the windows (front, step, drift, seasonal pooled, event-weighted) and no worse than -3 % in stationary bins,
 per stream and horizon. The window starts at the logged onset on the target-time axis (the error is stamped when the truth arrives).
 The Influx path (per-minute sums, truth events from the raw bucket) is written but could not be exercised here: there is no
-InfluxDB on the Air and no dev run output on disk (`runs/` holds only agent logs), so it is untested against live data until the dev
+InfluxDB on the day host and no dev run output on disk (`runs/` holds only agent logs), so it is untested against live data until the dev
 runs sync back. 50 tests pass (5 new, synthetic series).
 
 **Offline check** (bench, seed 1, 5 days, 2 warm-up, temp only, 2 drifts in the windows): `lin_rls` vs static: window reduction
@@ -283,8 +283,8 @@ recipe line "persistence is the product on solar": a one-line geometric correcti
 model does not. Not tested: a robust (quantile or Huber) learner on the shape residual; a seasonal fit of the amplitude (irrelevant for a
 ratio). H1/H2 (solar useful horizon <= 60 s): consistent but at skill 0.01-0.02, below the 0.05 bar of H2's "useful".
 **Plan.** No dedicated run. `clearsky_shape` and `clearsky_adapt` (cheap) are in the default model set, so they ride on the queued
-`dev-s1-drift` and `dev-s2-drift` runs after the Mini sync (the image must be rebuilt anyway for the drift models).
-**Support / no support for "solar is forecastable beyond persistence with geometry":** support = on the Mini runs `clearsky_adapt` has skill
+`dev-s1-drift` and `dev-s2-drift` runs after the night host sync (the image must be rebuilt anyway for the drift models).
+**Support / no support for "solar is forecastable beyond persistence with geometry":** support = on the night host runs `clearsky_adapt` has skill
 > 0 with CI excluding 0 at h >= 30 s on both seeds, and `clearsky_adapt` >= `clearsky_shape` on the seed with a phase shift. No support = skill
 <= 0 on either seed or CI covering 0 at 60 and 300 s. Result for the recipe: stays `dev` until locked seeds.
 
@@ -306,14 +306,14 @@ P, N, E never called live; no scoring for N and E. (f) The agent is not in the l
 holds the caller), call ids and `CallLog.verdict`, `summarise_log` (C5c), `c5b_check` (macro ratio <= 0.97 and no stream worse than +1 %),
 wired into `scripts/agent_proposals.py` (verdicts logged, C5b/C5c printed), doc fixed. 59 tests pass. Scripted-agent smoke (2 dev days,
 temp): rules twin 0.953 of fixed MAE (CI 0.91-0.99), the scripted bad agent 1.12, as before. Large gaps are in BACKLOG item 3 (a-f).
-**Not run:** no live model, no new queue line. A closed-loop live run needs a model server on the Mini plus a section in the Mini's
+**Not run:** no live model, no new queue line. A closed-loop live run needs a model server on the night host plus a section in the night host's
 `nightly.sh`, which I did not touch. Read-out when it is run: *support for the agent* = C5b macro ratio <= 0.97 over all five streams, no
 stream worse than +1 %, **and** better than the rules twin; *no support* otherwise (H7 predicts |delta MAE| < 1 %).
 
 ## Iteration 8 (2026-10-20): C4 / H5 verdict on the dev drift runs, and a fairer yardstick
 
-**Data.** `dev-s1-drift` and `dev-s2-drift` (7 days, 2 warm-up, all streams) finished on the Mini on 2026-10-19 and were scored there with
-`analysis --event-windows` (reports read read-only; copies of the numbers are in `reports/dev-drift-c4.md`). The Mini had already scored
+**Data.** `dev-s1-drift` and `dev-s2-drift` (7 days, 2 warm-up, all streams) finished on the night host on 2026-10-19 and were scored there with
+`analysis --event-windows` (reports read read-only; copies of the numbers are in `reports/dev-drift-c4.md`). The night host had already scored
 seed 2 as well. Pre-registered rule, unchanged: online beats the frozen model by >= 15 % in the 60 min after regime changes and loses
 no more than 3 % in stationary bins. Windows per stream and seed: 1-7 (many streams have 1-3 events of one kind, so every CI is wide).
 **Result (static reference = frozen after 2 days, the pre-registered one).**
@@ -341,7 +341,7 @@ model set (cost: one extra linear model per horizon plus a shadow). Tests: model
 references are separate columns and `event_gain` isolates a gain that exists only in windows (the new test also checks the old
 single-reference path still works). 64 tests pass.
 **Bench, same scenario, seeds 1-2, 7 days, 2 warm-up, all streams** (columns in `reports/dev-drift-c4.md`). The static column reproduces the
-Mini's within about 0.01-0.05. Against the retrained reference the rule passes once in 120 learner rows (4 learners, all horizons, 2 seeds, solar excluded) (seed 2, pressure, `lin_lag` 3600 s:
+Night host's within about 0.01-0.05. Against the retrained reference the rule passes once in 120 learner rows (4 learners, all horizons, 2 seeds, solar excluded) (seed 2, pressure, `lin_lag` 3600 s:
 window +0.172, stationary +0.234, event gain -0.06, i.e. not event-specific; the stationary stretch is where the retrained model, which sees
 one day, is weak). Event gain >= 0.05 with a positive window gain appears in 2 of 120 rows per reference, both seed 1: `lin_rls_vn` on
 pressure and temperature at 3600 s against the frozen model (+1.4 / +0.17), which is a stationary loss, not a window win, and `lin_lag` on
@@ -379,9 +379,9 @@ The informative result is the other direction: a robust loss turns -10 to -26 % 
 the loss, were the problem, and that nothing learnable remains in the residual beyond what the geometry gives.
 **Decision.** Backlog item 4 closed. Recipe sentence added (solar). Stays `dev`.
 
-## Iteration 10 (2026-10-20): five-model test on the Air (local models for jobs T, E, N, P and honesty)
+## Iteration 10 (2026-10-20): five-model test on the day host (local models for jobs T, E, N, P and honesty)
 
-**Why.** The owner asked for a comprehensive, comparable test of five candidate local models while the Air was idle. Four ran; Qwen3.5-9B is
+**Why.** The owner asked for a comprehensive, comparable test of five candidate local models while the day host was idle. Four ran; Qwen3.5-9B is
 on disk but LM Studio never indexed it (load by key, name and path all fail with "No model found that matches model key"), so it was not tested.
 **Built.** `scripts/five_models.py` (load at context 4096 with free-memory record, speed/TTFT, honesty prompts from the llm-bench set plus a second
 hippo case, unconstrained JSON adherence for E and P, constrained P, thinking arm) around the existing `agent_eval.py` and `model_profile.py`;
@@ -396,9 +396,9 @@ slower on triage (16/30 vs 21/30). Constrained decoding gives 100 % valid output
 point estimate by gpt-oss-20b with examples, but that is one dev run with the examples drawn from the same pool, so it goes to the locked-seed plan, not to a verdict.
 **Open.** Qwen3.5-9B needs re-adding through the LM Studio UI; thinking on/off on honesty for the second hippo case was not run.
 
-## Night 2026-10-22/23 results: job P live on the Mini (C5b/C5c, dev seeds 1-2)
+## Night 2026-10-22/23 results: job P live on the night host (C5b/C5c, dev seeds 1-2)
 
-**Run.** `mini-p1` (seed 1) 23:00-05:10 and `mini-p2` (seed 2) 05:10-11:19: closed-loop bench, 3 days, 1 warm-up, all five streams,
+**Run.** `night-p1` (seed 1) 23:00-05:10 and `night-p2` (seed 2) 05:10-11:19: closed-loop bench, 3 days, 1 warm-up, all five streams,
 one horizon each, arms fixed (`lin_lag`), rules twin (best trailing MAE if 10 % better), gemma3:4b and qwen3:8b through Ollama.
 **Result (MAE ratio vs fixed, macro over streams; worst stream).** Seed 1: rules 0.950 (wind 1.00, C5b pass), qwen3:8b 0.984
 (pressure 1.079, fail), gemma3:4b 1.000 (never switched, fail). Seed 2: rules 0.958 (pressure 1.175, fail), qwen3:8b 0.961
@@ -408,7 +408,7 @@ qwen3:8b p50 57-59 s, p95 154-158 s, invalid 1.2-1.6 %, 70-73 % of its switches 
 **Read honestly.** Two dev seeds, one horizon per stream. qwen3:8b behaves like a slower copy of the rules twin, not better than it; the
 small model is a no-op. Pressure is where switching hurts (H2: nothing beyond about a minute), so a "never switch pressure" rule would
 help both arms; that is tuning on dev and stays an idea. The pre-registered wording for now: "lift not shown" (`dev`).
-**Incident.** `mini-p2` overran the window by 5 h 19 min: the bench had no deadline (the same gap as the eval script on 2026-10-17).
+**Incident.** `night-p2` overran the window by 5 h 19 min: the bench had no deadline (the same gap as the eval script on 2026-10-17).
 Fixed in iteration 11.
 **Decision.** Recipe section 5 updated. Seed 3 queued to finish the dev triple.
 
@@ -419,22 +419,22 @@ Night 2026-10-22/23: finding (model selection moves from `untested` to `dev`).
 **Why.** The owner asked for the experiment to run on its own until the goal. Three gaps: the queues were empty (nothing would have run
 tonight), job P could overrun the window, and nothing did the daytime part (write-up, next step, next queue) without a session started by hand.
 **Built.** (1) `agent_proposals.py --until HH:MM`: stops at the window end, writes `cut.json`, exits 3 (no checkpoint, so a cut bench starts
-over). (2) `nightly.sh`: one stop check for window and disk (`MIN_FREE_GB`, default 3; the Mini had 5 GB free today), `--until` passed to
-the bench, and `runs/last-night.txt` with one line per item (ok / stopped / cut / failed, nothing ran). (3) `scripts/mini-sync.sh`
-status / pull / push between the Air and the Mini (git bundles over ssh, refuses while a night job runs or when the Mini has its own commits).
+over). (2) `nightly.sh`: one stop check for window and disk (`MIN_FREE_GB`, default 3; the night host had 5 GB free today), `--until` passed to
+the bench, and `runs/last-night.txt` with one line per item (ok / stopped / cut / failed, nothing ran). (3) `scripts/night-sync.sh`
+status / pull / push between the day host and the night host (git bundles over ssh, refuses while a night job runs or when the night host has its own commits).
 (4) `docs/daily-loop.md`: the daily pass and the road to the verdict; `CLAUDE.md` points to it and no longer says there is no remote.
-(5) A daily scheduled task on the Air runs that pass (outside the repo, set up by the owner's request).
+(5) A daily scheduled task on the day host runs that pass (outside the repo, set up by the owner's request).
 **Tested.** Scripted-agent bench runs to the end and, with `--until` one minute ahead, stops after 2.2 of 30 days with exit 3; stop check
-gives "window over" and "disk low" in the right cases; `mini-sync.sh status` and `pull` against the Mini.
+gives "window over" and "disk low" in the right cases; `night-sync.sh status` and `pull` against the night host.
 
-## Night 2026-10-23/24: nothing ran (disk low on the Mini)
+## Night 2026-10-23/24: nothing ran (disk low on the night host)
 
-**Run.** `mini-p3` (job P, dev seed 3) was queued. The nightly stop check refused at 23:00: 2 GB free, `MIN_FREE_GB` 3.
-**Look on 2026-10-24 (read-only).** The Mini's data volume is full outside this repo: 3.2 GB free of 460 GB; the colima VM uses 39 GB,
+**Run.** `night-p3` (job P, dev seed 3) was queued. The nightly stop check refused at 23:00: 2 GB free, `MIN_FREE_GB` 3.
+**Look on 2026-10-24 (read-only).** The night host's data volume is full outside this repo: 3.2 GB free of 460 GB; the colima VM uses 39 GB,
 Ollama models 15 GB, `~/Library/Caches` 8.6 GB. This repo's `runs/` is 30 MB, so the runs did not fill it. Free space went from 5 GB
-(2026-10-23) to 2-3 GB without a run, so something outside the experiment is writing. Deleting anything on the Mini is the owner's call;
+(2026-10-23) to 2-3 GB without a run, so something outside the experiment is writing. Deleting anything on the night host is the owner's call;
 nothing was deleted and the guard was not lowered.
-**Decision.** `mini-p3` stays queued; it starts tonight only if the guard sees at least 3 GB at 23:00. Asked in the report.
+**Decision.** `night-p3` stays queued; it starts tonight only if the guard sees at least 3 GB at 23:00. Asked in the report.
 
 Night 2026-10-23/24: no finding (nothing ran).
 
@@ -491,9 +491,9 @@ On all 1158 seed-3 alerts: R0 0.709, R1 0.925.
 **Read honestly.** H10's first part holds on dev: R1 >= 0.85. The artefact class is nearly free in hindsight (an alert the true-order
 series does not show), which the 2-min triage could never see. The C5d lift bar is +0.05 over R1, about 0.99, so R2 and R3 can at best
 tie; the live question is R4 (rules label, model writes, checked in code). One seed, the thresholds came from the other two.
-**Not run: the model arms.** The Air was on battery all afternoon (the local-model rule: no model on battery). Ready to run when it is on
+**Not run: the model arms.** The day host was on battery all afternoon (the local-model rule: no model on battery). Ready to run when it is on
 power: Qwen3-14B and gemma-4-e4b, 12 windows, R2-R4, under 30 min (context >= 12288 needed: the largest window is about 19k characters).
-**Decision.** Recipe section 5 updated (`dev`, rules only). Model pilot next time the Air is plugged in; the full 40-window run needs a slot.
+**Decision.** Recipe section 5 updated (`dev`, rules only). Model pilot next time the day host is plugged in; the full 40-window run needs a slot.
 
 ## Iteration 14 (2026-10-24): escalation to Claude (C5e), dev
 
@@ -518,10 +518,10 @@ Iteration 14: finding (escalation and the rules-sent-down result change recipe s
 
 ## Iteration 15 (2026-10-24): the daily-pass escalation inbox
 
-**Why.** The owner: build the inbox (questions from the Mini, answers and rule proposals back via mini-sync, handled in the daily
+**Why.** The owner: build the inbox (questions from the night host, answers and rule proposals back via night-sync, handled in the daily
 loop). Pre-registered as the C5e inbox run (0433c48): dev seeds 11-30 added for fresh alerts, residue trigger, H12.
-**Built.** `skylink.agent.inbox` (ask / check / apply / score), `scripts/escalate.py` (night on the Mini; pending, show, check on the
-Air), a nightly step before the simulation queue, `mini-sync.sh answers`, daily-loop step 2b, queue `config/escalation-queue.txt`
+**Built.** `skylink.agent.inbox` (ask / check / apply / score), `scripts/escalate.py` (night on the night host; pending, show, check on the
+Day host), a nightly step before the simulation queue, `night-sync.sh answers`, daily-loop step 2b, queue `config/escalation-queue.txt`
 (e11-e17). Rule proposals go through the daily report and land as code via `push` after the owner's OK; the edge's rules stay frozen
 during the run. 4 tests; an end-to-end run on seed 30 (not queued) in a temporary folder: 207 alerts, 91 residue, 40 questions
 (all wind: wind fills the budget), 443 bytes each, 3 s; an echo shore applied cleanly with zero gain.
@@ -529,7 +529,7 @@ during the run. 4 tests; an end-to-end run on seed 30 (not queued) in a temporar
 
 ## Iteration 16 (2026-10-24): job R model pilot, Qwen3-14B (C5d, dev seed 3)
 
-**Run.** Air on power, Qwen3-14B MLX 4-bit at 16k context through mcp-minions (schema-constrained), R3 and R4 on 8 windows
+**Run.** day host on power, Qwen3-14B MLX 4-bit at 16k context through mcp-minions (schema-constrained), R3 and R4 on 8 windows
 (`r-pilot-q14`; the sample's first 8 are artefact windows, 46 alerts, 19 artefacts), about 2 min per method. Report copied to
 `reports/review-pilot-q14-2026-10-24.md`.
 **Result.** R1 0.858 [0.747, 1.0]; R0 0.621. **R3** (the model reads the whole hour alone) **0.129** [0.043, 0.272]: far below the
@@ -543,7 +543,7 @@ better than four rules; as a writer it is safe on numbers (the checks pass) but 
 
 ## Iteration 17 (2026-10-24): O1, per-stream menus (first ontology experiment)
 
-**Why.** `docs/slm-backend.md` experiment 1; pre-registered (017f6e1) with H13. Air on power, one model at a time.
+**Why.** `docs/slm-backend.md` experiment 1; pre-registered (017f6e1) with H13. Day host on power, one model at a time.
 **Result** (`reports/o1-menus-2026-10-24.md`). Qwen3-14B 0.797 -> 0.819, +0.022 [0.007, 0.040]: real but under the +0.03 bar.
 gemma-4-e4b 0.762 -> 0.808, +0.046 [0.022, 0.072]: **menus help**. All of the gain is on temp and pressure; the 4B model with menus
 matches the 14B model without. H13 holds.
@@ -558,9 +558,9 @@ Iteration 17: finding (O1 changes recipe section 5; H13 holds).
 
 **Why.** The owner: do road step 4 now, it is what every later step waits on.
 **Built.** `skylink.verdict` (pure: C1-C8 rules, pooling over runs, the section-2 lines, report) and `scripts/verdict.py`
-(`collect` on the Mini from InfluxDB, one JSON per run; `decide` anywhere). Every choice the criteria leave open is written in the
+(`collect` on the night host from InfluxDB, one JSON per run; `decide` anywhere). Every choice the criteria leave open is written in the
 module's docstring, fixed before any locked run. C3 rows now keep per-event times so seeds can be pooled. 6 tests.
-**Dry run** (`dev-dry`: dev-s1-drift, dev-s2-drift, dev-s3; collect 15 min on the Mini; `reports/verdict-dev-dry.md`). It runs end to end.
+**Dry run** (`dev-dry`: dev-s1-drift, dev-s2-drift, dev-s3; collect 15 min on the night host; `reports/verdict-dev-dry.md`). It runs end to end.
 It found two things: (1) model sets differ between dev runs, so a model in one run only was pooled as if seen in all; fixed (a model
 must be scored in every pooled run). (2) **C8 voids dev-s2-drift**: raw points are about 18 % short on every stream, a hole from about
 2026-01-02 12:00 to 01-04 05:00 of event time (counts per 12 h in the raw bucket). Never checked by hand on that run. Its earlier C3
@@ -574,23 +574,23 @@ Iteration 18: finding (C8 voids a dev run; verdict pipeline exists).
 
 ## Incident found 2026-10-24: the colima VM disk filled and voided dev-s2-drift
 
-**Cause** (backlog 1a). InfluxDB lives on the colima VM's own 40 GB disk, not the Mac's. On 2026-10-19 at 00:57 UTC (dev-s2-drift
+**Cause** (backlog 1a). InfluxDB lives on the colima VM's own 40 GB disk, not the host's. On 2026-10-19 at 00:57 UTC (dev-s2-drift
 running since 00:31) it logged "no space left on device", restarted at 01:26 and refused Node-RED's raw writes until about 01:57:
-about 1.3 days of event time at 60x, the hole C8 found in iteration 18. The nightly guard only looked at the Mac's disk.
+about 1.3 days of event time at 60x, the hole C8 found in iteration 18. The nightly guard only looked at the host's disk.
 **Now.** The VM disk holds 35 of 40 GB (2.3 GB free): the next 7-day simulation would hit it again, and a locked run would be void.
 **Fix in the repo.** Simulations (the only InfluxDB writers) do not start under 6 GB free on the VM disk (`MIN_VM_FREE_GB`); the job P
-bench and the escalation inbox still run. `mini-sync.sh status` shows the VM disk. Making room (grow the VM disk, or drop old raw data)
+bench and the escalation inbox still run. `night-sync.sh status` shows the VM disk. Making room (grow the VM disk, or drop old raw data)
 is the owner's call; asked.
 **Done the same day (owner: "increase to 100 GB and delete data that has served its purpose").** The colima VM disk was grown to
 100 GB (stack stopped in the daytime, no job running): InfluxDB volume 99 GB, 59 GB free; dev-s3's raw temp count still equals emitted
 (6 042 618). `nightly.sh` starts colima with `--disk 100`. `scripts/drop-raw.sh` deletes the raw sensor points of runs whose purpose is
-served, keeping truth events and forecasts; for mini-smoke-1, base-smoke-1/2/3, dev-s1, dev-s2 and dev-s2-drift (void). Kept:
+served, keeping truth events and forecasts; for night-smoke-1, base-smoke-1/2/3, dev-s1, dev-s2 and dev-s2-drift (void). Kept:
 dev-s1-drift and dev-s3 (inputs of the verdict dry run).
 
 ## Night 2026-10-24/25 results: job P on dev seed 3 (C5b/C5c), and the escalation step failed
 
-**Run.** `mini-p3` (seed 3) 23:00-04:03, same bench as p1/p2 (3 days, 1 warm-up, five streams, fixed `lin_lag`, rules twin,
-gemma3:4b and qwen3:8b through Ollama). Mini disk 85 -> 84 GB free; VM disk 59 GB free of 98; Influx data 30 GB.
+**Run.** `night-p3` (seed 3) 23:00-04:03, same bench as p1/p2 (3 days, 1 warm-up, five streams, fixed `lin_lag`, rules twin,
+gemma3:4b and qwen3:8b through Ollama). Night host disk 85 -> 84 GB free; VM disk 59 GB free of 98; Influx data 30 GB.
 **Result (MAE ratio vs fixed, macro; worst stream).** Rules 0.947 (worst wind 1.000, C5b pass); qwen3:8b 0.970 (worst pressure 1.010,
 pass at the 1 % edge); gemma3:4b 1.000 (never switched, fail). Gains again on solar (0.86-0.87) and temp (rules 0.949). C5c: gemma3:4b
 p50 11.7 s, 0 invalid; qwen3:8b p50 55 s, p95 151 s, invalid 1.6 %, 68 % of switches accepted, 4 calls hit the 300 s timeout.
@@ -607,7 +607,7 @@ Night 2026-10-24/25: finding (C5b dev reading on three seeds: the rules twin pas
 
 ## Iteration 19 (2026-10-25): job R model arms, gemma-4-e4b and R2 (road 1c, C5d pilot)
 
-**Run.** Air on power, LM Studio, 16k context, one model at a time, about 25 min in all; the same 8 windows as iteration 16
+**Run.** day host on power, LM Studio, 16k context, one model at a time, about 25 min in all; the same 8 windows as iteration 16
 (`reports/review-pilot-g4e-2026-10-25.md`). gemma-4-e4b R3 and R4, then R2 for gemma-4-e4b and Qwen3-14B.
 **Result.** R1 0.858. gemma-4-e4b: R3 0.229 (-0.63), R4 0.858 (no override, so equal to R1; fault-stream precision 0.333, recall 0.8),
 R2 0.801 (-0.058 [-0.330, +0.055]). Qwen3-14B R2 0.621 (-0.238 [-0.516, -0.112]): its labels are exactly R0's (16 / 29 / 1), so per
@@ -625,7 +625,7 @@ Iteration 19: finding (job R pilot on two model sizes; recipe claim on the model
 
 **Why.** Owner's concern: an online learner adapts to slow wear and never alarms. Pre-registered first (C9, then an amendment that
 made the vibration stream the radar pedestal's accelerometer and let wear grow the 12 rpm line too; the first run, on the old
-definition, was deleted unread). Offline on the Air, dev seeds 1-3 and 41-60, each with a healthy twin, 21 days, a few minutes.
+definition, was deleted unread). Offline on the day host, dev seeds 1-3 and 41-60, each with a healthy twin, 21 days, a few minutes.
 **Result.** Arm (b), frozen reference: detection 18 of 23 (0.78, bar 0.90), median delay 4.1 d, hold 0.945, vibration false alerts 0
 per day: "not shown" on detection alone. (b') identical. Arm (a): 7 of 23 runs had 1-3 wear-only alerts (11 in all, 3 by chance the
 other way), alerts fell a median 35 % in wear runs, its one-step error rose to 1.79x the twin. Report: `reports/wear-dev-2026-10-25.md`.

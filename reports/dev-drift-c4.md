@@ -1,14 +1,14 @@
 # C4 on the dev drift runs (seeds 1 and 2, 7 days, 2 warm-up): static vs retrained reference
 
-Generated 2026-10-20 from the Mini's scoring of runs dev-s1-drift and dev-s2-drift (columns *Mini*, pre-registered static
+Generated 2026-10-20 from the night host's scoring of runs dev-s1-drift and dev-s2-drift (columns *night host*, pre-registered static
 reference: frozen after 2 days) and from offline bench runs of the same scenario (columns *retr.*, reference retrained daily,
 `lin_lag_retrain`). *win* = MAE reduction in the 60 min after regime changes, *stat* = reduction in stationary bins, *gain* =
 win - stat (event-specific part). Pre-registered rule: win >= 0.15 and stat >= -0.03. Positive = online better than the reference.
-Bench static columns reproduce the Mini ones to within about 0.01-0.05 (same scenario, different run).
+Bench static columns reproduce the night host ones to within about 0.01-0.05 (same scenario, different run).
 
 ## Seed 1
 
-| stream | model | h (s) | Mini win | Mini stat | Mini gain | rule | retr. win | retr. stat | retr. gain | rule |
+| stream | model | h (s) | night host win | night host stat | night host gain | rule | retr. win | retr. stat | retr. gain | rule |
 |---|---|---|---|---|---|---|---|---|---|---|
 | pressure | lin_lag | 60 | -0.002 | -0.000 | -0.002 | fail | -0.009 | +0.003 | -0.013 | fail |
 | pressure | lin_lag | 600 | +0.004 | -0.001 | +0.005 | fail | -0.009 | +0.010 | -0.019 | fail |
@@ -127,7 +127,7 @@ Bench static columns reproduce the Mini ones to within about 0.01-0.05 (same sce
 
 ## Seed 2
 
-| stream | model | h (s) | Mini win | Mini stat | Mini gain | rule | retr. win | retr. stat | retr. gain | rule |
+| stream | model | h (s) | night host win | night host stat | night host gain | rule | retr. win | retr. stat | retr. gain | rule |
 |---|---|---|---|---|---|---|---|---|---|---|
 | pressure | lin_lag | 60 | +0.002 | -0.000 | +0.002 | fail | +0.009 | +0.011 | -0.002 | fail |
 | pressure | lin_lag | 600 | +0.004 | -0.003 | +0.007 | fail | -0.004 | +0.036 | -0.040 | fail |

@@ -16,7 +16,7 @@ Never edit a threshold in place.
 - **Arms**: *edge* (River sees the local, in-order, gap-free sensor tap, so it is unaffected by Skylink) and *base* (River sees only what crossed Skylink: gaps during outages, then a late, out-of-order backfill burst). Sensor dropouts hit both.
 - **Seeds**: dev seeds 1–3 (tuning allowed). **Locked test seeds 101–105**: not looked at, not used for tuning, until the final report. Every number in a verdict comes from locked seeds, mean ± sd over seeds, with a block bootstrap (1 h blocks, 2000 resamples) 95% CI.
 - **Run length** for verdicts: ≥ 7 simulated days, all five streams, with the event/outage schedule of `config/scenario-default.toml`.
-- **Target machine**: the Mac Mini. Numbers measured on any other host are labelled with that host and do not count towards C2/C7 verdicts.
+- **Target machine**: the night host. Numbers measured on any other host are labelled with that host and do not count towards C2/C7 verdicts.
 
 ## 1. Criteria (each has a number, a method, and a pass rule)
 
@@ -24,7 +24,7 @@ Never edit a threshold in place.
 For at least **3 of 5 streams**, at at least one pre-set horizon each, the best River model has skill ≥ **0.10** against persistence on the edge arm, and the bootstrap CI of the skill excludes 0. Also report skill against seasonal naive, but C1 does not depend on it.
 
 ### C2 Resource budget at the edge
-On the Mac Mini, with all five streams at real-time (1× speed), the River service (forecasting + evaluation + writes) must stay within: mean CPU ≤ **0.5 core**, RSS ≤ **512 MB**, p99 per-step latency (all models, all horizons, one stream) ≤ **50 ms**. It must also sustain **≥ 60× time compression** on at least the cheapest model set (this is what makes the nightly runs useful). Local model servers (Ollama/LM Studio) are *excluded* from this budget and reported separately under C5.
+On the night host, with all five streams at real-time (1× speed), the River service (forecasting + evaluation + writes) must stay within: mean CPU ≤ **0.5 core**, RSS ≤ **512 MB**, p99 per-step latency (all models, all horizons, one stream) ≤ **50 ms**. It must also sustain **≥ 60× time compression** on at least the cheapest model set (this is what makes the nightly runs useful). Local model servers (Ollama/LM Studio) are *excluded* from this budget and reported separately under C5.
 
 ### C3 Recovery after disturbance
 Recovery time = steps from the event until a 5-minute rolling MAE stays within **25 %** of the pre-event steady-state MAE (median of the 30 min before). Applies to: end of an outage + backfill (base arm), front passage, step change, drift end. Pass: **median recovery ≤ 15 min** per event kind for the best model, **without re-initialising the model** (a reset counts as a failure of the model, but is reported as an alternative strategy).
@@ -114,8 +114,8 @@ After every outage cycle, points stored in the InfluxDB raw bucket = points the 
   - *Cases.* The 200 edge alerts (100 real event, 100 sensor fault) of the 300 balanced job-T dev cases (seed 7) that every stored model
     run already answered. Artefact cases are left out: they arise only in the shore's view of the data, so the edge never asks about them.
     Score: two-class macro-F1 (an artefact answer counts as wrong), bootstrap over cases (2000 resamples).
-  - *Edge.* gemma-4-e4b with three worked examples per class (stored run `air-fs3`), the 4B model that fits the edge. Second voter for
-    the quorum trigger: Jev 0.8B (`air-fs3`). Rules: the job-T rules.
+  - *Edge.* gemma-4-e4b with three worked examples per class (stored run `day-fs3`), the 4B model that fits the edge. Second voter for
+    the quorum trigger: Jev 0.8B (`day-fs3`). Rules: the job-T rules.
   - *Shore.* (a) Claude, answering the escalated alerts blind: questions exported without labels or ids that reveal them, in shuffled
     order, answered in one pass from the question text, the job-T hint and the station physics in `docs/slm-backend.md`, before any
     score is computed; Claude answers all 200 so every policy can be scored. (b) gpt-oss-20b and Qwen3-14B 3-shot (stored), as local
@@ -141,11 +141,11 @@ After every outage cycle, points stored in the InfluxDB raw bucket = points the 
   two-class macro-F1 vs the job-T rules. Prediction: >= 0.85. Exploratory (dev, rules distilled from Claude's own answers), reported
   apart from C5e's pass rule.
 - 2026-10-24 (evening): **C5e inbox run**, the daily-pass escalation loop (owner: build it). Dev seeds **11-30** are added for this
-  loop only (same rules as dev seeds; never 101-105), so every night brings alerts nobody has looked at. Each night the Mini simulates
+  loop only (same rules as dev seeds; never 101-105), so every night brings alerts nobody has looked at. Each night the night host simulates
   one day of one such seed, labels every edge alert with the rules sent down (`escalation.distilled_rules`), and writes questions for
   the *residue*: every wind alert, then vibration alerts with at most 2 s beyond threshold, at most 40 a night (wind first, then in
   time order). The questions hold the job-T facts and the edge's label, never the truth. The daily pass (Claude) answers them blind;
-  the answers go back to the Mini and are applied and scored the next night against the simulator's truth.
+  the answers go back to the night host and are applied and scored the next night against the simulator's truth.
   Measured per night and pooled: two-class macro-F1 of the final labels vs the distilled rules alone over **all** edge alerts of the
   night, Claude's accuracy on the escalated alerts, labels fixed / broken, questions per night, hours from question to applied answer.
   Read after at least 5 answered nights: "residue escalation pays" if the pooled gain is ≥ **+0.02** with the paired bootstrap CI
@@ -158,8 +158,8 @@ After every outage cycle, points stored in the InfluxDB raw bucket = points the 
 - 2026-10-24: **O1, per-stream menus** (first ontology experiment, `docs/slm-backend.md`). Written before the run. The job-T triage
   call offers only the causes the station allows on the alert's stream: temp and pressure get {sensor_fault, backfill_artefact} (their
   real processes, seasonal shift and fronts, are too slow to raise a jump or flat alert); wind, vibration and solar keep all three.
-  Same 300 balanced dev cases (seed 7), same three worked examples per class, same models: Qwen3-14B and gemma-4-e4b on the Air.
-  Compared with the stored runs without menus (`five-q14-t3`, `air-fs3`). Reported claim, not a verdict rule. "Menus help" for a
+  Same 300 balanced dev cases (seed 7), same three worked examples per class, same models: Qwen3-14B and gemma-4-e4b on the day host.
+  Compared with the stored runs without menus (`five-q14-t3`, `day-fs3`). Reported claim, not a verdict rule. "Menus help" for a
   model if three-class macro-F1 rises by >= **+0.03** with the paired bootstrap CI excluding 0. *H13:* both models gain, the 4B
   model more; nearly all of the gain is on temp and pressure.
 - 2026-10-25: added **C9 Slow degradation (job W)**, requested by the owner: an online learner may adapt to slow wear and never
@@ -208,9 +208,8 @@ After every outage cycle, points stored in the InfluxDB raw bucket = points the 
   broadband background (a worn bearing runs rough at the rotation rate too), so the 1 s RMS of the healthy signal grows by exactly
   g(t); bursts stay as they are. Same draws, same RNG, same onset, ramp and factor ranges, same arms, metrics, pass rule, seeds and H14.
   The first job-W run (old definition) finished but was deleted unread; the dev seeds are therefore still unseen for C9.
-- 2026-10-25: **machines named by role**, owner's request (the repo describes a general setup, not particular computers). From now
-  on the docs say **night host** for the machine that runs the nights and the verdict runs (named "the Mac Mini" in section 0 and in
-  earlier amendments) and **day host** for the machine of the daily pass and the offline checks (earlier "the Air"). Same machines as
-  before: the C2/C7 target machine in section 0 is the night host, and numbers from any other host are still labelled with that host
-  and do not count towards C2/C7. Earlier text above is not edited (the rule of this file); script, folder and run names that still
-  say `mini` or `air` are identifiers and are renamed separately. No threshold, verdict rule or hypothesis changes.
+- 2026-10-25: **machines named by role**, owner's request (the public repo describes a general setup, not particular computers).
+  The docs, including the text above, now say **night host** for the machine that runs the nights and the verdict runs (the C2/C7
+  target machine of section 0) and **day host** for the machine of the daily pass and the offline checks. Same machines as before;
+  only the words changed, and numbers from any host other than the night host still do not count towards C2/C7. Script, folder and
+  run names were renamed to match (git history keeps the old ones). No threshold, verdict rule or hypothesis changes.

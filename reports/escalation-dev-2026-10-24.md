@@ -1,7 +1,7 @@
 # Escalation to Claude, dev cases (C5e), 2026-10-24
 
 200 edge alerts (100 real event, 100 sensor fault) from the 300 balanced job-T dev cases (seeds 1-3, seed 7 sample). Two-class
-macro-F1, 95% bootstrap CIs over cases. Edge: gemma-4-e4b 3-shot (stored run `air-fs3`); voter Jev 0.8B. Local shores: stored
+macro-F1, 95% bootstrap CIs over cases. Edge: gemma-4-e4b 3-shot (stored run `day-fs3`); voter Jev 0.8B. Local shores: stored
 3-shot runs of gpt-oss-20b and Qwen3-14B. Claude answered all 200 blind (shuffled, renamed Q001-Q200, no labels), in one pass,
 before any score; answers fingerprinted (SHA-256 `70db7245...0606`) and kept in `escalation-claude-answers-2026-10-24.json`.
 Timing from each seed's link chain; script `scripts/escalation_eval.py`.
