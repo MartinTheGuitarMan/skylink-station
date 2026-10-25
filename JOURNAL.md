@@ -620,3 +620,18 @@ either model are worse than the rules' (precision 0.33-0.42 vs 0.83). The smalle
 the rules, the model writes words only.
 
 Iteration 19: finding (job R pilot on two model sizes; recipe claim on the model as writer changed). Open ideas: 20 (BACKLOG.md items and sub-items, 0 not counted).
+
+## Iteration 20 (2026-10-25): job W, slow degradation of the radar pedestal bearing (C9)
+
+**Why.** Owner's concern: an online learner adapts to slow wear and never alarms. Pre-registered first (C9, then an amendment that
+made the vibration stream the radar pedestal's accelerometer and let wear grow the 12 rpm line too; the first run, on the old
+definition, was deleted unread). Offline on the Air, dev seeds 1-3 and 41-60, each with a healthy twin, 21 days, a few minutes.
+**Result.** Arm (b), frozen reference: detection 18 of 23 (0.78, bar 0.90), median delay 4.1 d, hold 0.945, vibration false alerts 0
+per day: "not shown" on detection alone. (b') identical. Arm (a): 7 of 23 runs had 1-3 wear-only alerts (11 in all, 3 by chance the
+other way), alerts fell a median 35 % in wear runs, its one-step error rose to 1.79x the twin. Report: `reports/wear-dev-2026-10-25.md`.
+**Read honestly.** Every miss has vibration sensor faults inside the 2-day reference window: the reference learned a broken normal.
+The comparison idea works when its reference is clean; taking the first 2 days blindly does not. H14 wrong by the letter on arm (a)
+(it flags a few times), right in substance (an operator would not see it, and wear makes the detector quieter).
+**Decision.** Rule unchanged. Backlog: a checked reference, pre-registered on fresh dev seeds 61-80. Recipe section 3 updated.
+
+Iteration 20: finding (C9 dev reading; recipe claim on wear added). Open ideas: 21 (BACKLOG.md items and sub-items, 0 not counted).
