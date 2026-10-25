@@ -10,19 +10,55 @@ rules just as good?*
 
 ## The station
 
-Picture a mast on a ridge, far from anyone. Five sensors stream at 5-100 Hz:
+**Skylink Station is a fictional, unmanned weather research station on a high mountain ridge.** A crew comes up in summer. From
+autumn to spring nobody is there: the station watches the weather alone, with four weather instruments and its main research tool,
+a scanning weather radar on the mast. Its only line to the world is **Skylink**, a satellite link that holds for a few hours and then
+drops out for minutes to hours. When something breaks in January, help is months away, so the station has to notice for itself,
+decide for itself, and tell the shore what matters in a few hundred bytes when the link allows.
 
-| stream | what it is | what goes wrong |
+The simulation starts on 1 January: a clear winter day high in the mountains, about -8 °C, with up to 700 W/m² of sun at noon.
+Its crew is software, with a director ashore (see [Loop engineering](#loop-engineering)): River models are the station's reflexes,
+small local models are the night shift, Claude is the chief engineer who visits by satellite once a day.
+
+### The instruments (every signal the simulator makes)
+
+| stream | rate | the instrument | what it measures, in numbers |
+|---|---|---|---|
+| temperature | 10 Hz | air thermometer on the mast | mean -8 °C; daily swing ±6 °C, warmest at 15:00; weather wander over about 3 days (sd 0.8 °C) and 30 s (sd 0.15 °C); sensor noise 0.05 °C |
+| pressure | 10 Hz | barometer in the hut | 1013 hPa; weather wander over 36 h (sd 3 hPa); the twice-daily atmospheric tide (±0.25 hPa); **fronts** every 2 days on average, moving it by about 6 hPa (sd) over 3-8 h, with up to 5x the usual jitter as they pass |
+| wind | 20 Hz | anemometer and vane, speed and direction | median about 6 m/s, changing over hours and seconds; **gusts** every 10 min on average, 3-15 s long, 1.5-2.6x the wind; from the west (270°), swinging ±40° over hours and ±10° over seconds |
+| solar | 5 Hz | pyranometer | clear sky up to 700 W/m² at noon, zero at night; **cloud** changes every 8 min on average to clear (40 %), thin (30-80 % of clear sky, 35 %) or thick (5-30 %, 25 %), with 4 s edges and flicker under cloud; noise 1.5 W/m² |
+| vibration | 100 Hz | accelerometer on the radar pedestal | broadband noise around the mast's 2 Hz sway; the antenna turning at 12 rpm (a 0.2 Hz line); **drive kicks** every 3 min on average when the scan pattern changes, 8-15 Hz, dying out over 2-8 s; reported as 1 s RMS |
+
+The station turns all of this, about 145 samples a second or 12.5 million a day, into 1 s values at the edge (mean, RMS for
+vibration) and forecasts each stream at its own horizons, from 1 s (wind, vibration) to 1 h (temperature, pressure).
+
+### What goes wrong
+
+The world changes (seasonal shifts on temperature and sun, about one every 4 days: the daily curve 35 % weaker to 50 % stronger,
+or shifted by up to 3 h, over about 3 h; fronts; gusts; clouds; drive kicks), and the sensors break. Every stream gets, per day on
+average:
+
+| sensor fault | per day | what it looks like |
 |---|---|---|
-| temperature | ambient air, daily cycle, seasons shifting | sensors freeze, drift, jump |
-| pressure | weather systems, fronts passing over hours | same, plus fronts that look like faults |
-| wind | speed and direction, gusts of 3-15 s | gusts that look like spikes |
-| solar | sunshine, cloud edges that cut it in seconds | cliffs no model can predict |
-| vibration | an accelerometer on the pedestal of the station's **scanning weather radar**: the antenna turns at 12 rpm, the mast sways near 2 Hz, the drive kicks when the scan pattern changes | the radar's bearing slowly wears out |
+| spike | 4 | 1-3 raw samples off by 5-15 units |
+| dropout | 1.5 | no data for 10 s to 5 min |
+| stuck | 0.8 | the value freezes for 1-20 min |
+| drift | 0.5 | a ramp of 1-3 units over 2-6 h, then back |
+| step | 0.5 | an offset of 1-2.5 units for 6-48 h |
 
-All of it reaches the shore over **Skylink**, a satellite link that is up for about four hours and then down for minutes to hours.
-During an outage the station buffers. When the link returns, the backlog arrives late, in chunks, out of order, mixed with live data.
-Nobody is there to look, so the station has to think for itself.
+One unit is 2 °C, 3 hPa, 3 m/s, 3 µm/s of vibration or 80 W/m². In the wear scenario the radar's **slewing bearing** wears out too:
+starting 3-7 days in, over 4-14 days, the pedestal vibrates 1.5-3x harder and stays that way.
+
+### The link
+
+Skylink is up for 4 h on average and down for 40 min on average (random, minutes to hours). During an outage the station buffers
+up to 3 million points and drops the oldest beyond that, logging every dropped point. When the link returns, the backlog goes ashore
+in chunks of 5,000 points, shuffled within groups of 8 and rate-limited, mixed with live data: late and out of order. The station's
+own instruments never cross the link: the edge always sees its sensors, the shore sees only what Skylink delivered.
+
+Every event above (each front, gust, frozen sensor, outage and worn bearing) is drawn up front from a seed and logged as ground
+truth, so the same seed always gives the same winter, and every alert and forecast error can be traced to its cause.
 
 ## Loop engineering
 
@@ -33,9 +69,9 @@ It is organised like a small company:
 
 | role | who | does | never does |
 |---|---|---|---|
-| **CEO / CTO** | the human owner | sets direction ("test whether wear gets adapted away"), approves anything outward-facing or costly, pushes to GitHub | the daily work |
-| **Lead engineer and project manager** | Claude | turns an idea into a pre-registered test, writes the code and tests, queues the nights, reads the results, keeps the journal and the recipe honest, answers the edge's questions, reports in a few lines | push, spend money, touch locked seeds, move a threshold after the fact |
-| **Workers** | minions: small local models through [mcp-minions](https://github.com/MartinTheGuitarMan/mcp-minions) | one narrow job each (triage an alert, extract fields, write a short note), structured output, checked in code | decide alone: the rules go first, guardrails decide, numbers come from scripts |
+| **CEO / CTO** (station director) | the human owner | sets direction ("test whether wear gets adapted away"), approves anything outward-facing or costly, pushes to GitHub | the daily work |
+| **Lead engineer and project manager** (chief engineer ashore) | Claude | turns an idea into a pre-registered test, writes the code and tests, queues the nights, reads the results, keeps the journal and the recipe honest, answers the edge's questions, reports in a few lines | push, spend money, touch locked seeds, move a threshold after the fact |
+| **Workers** (the night shift) | minions: small local models through [mcp-minions](https://github.com/MartinTheGuitarMan/mcp-minions) | one narrow job each (triage an alert, extract fields, write a short note), structured output, checked in code | decide alone: the rules go first, guardrails decide, numbers come from scripts |
 
 The loops below are how that company works without meetings. There are three of them, one inside the other.
 
@@ -101,8 +137,6 @@ simulator (seeded, replayable, time-compressed)
                        └────────────────> InfluxDB: raw | forecasts | metrics | agent ──> Grafana
 ```
 
-Every event (a frozen sensor, a front, a gust, a worn bearing) is drawn up front from the seed and logged as ground truth, so the
-same seed always gives the same station, and every alert and error can be traced to its cause.
 
 ## Run it
 ```bash
