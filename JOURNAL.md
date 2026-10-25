@@ -586,3 +586,37 @@ is the owner's call; asked.
 (6 042 618). `nightly.sh` starts colima with `--disk 100`. `scripts/drop-raw.sh` deletes the raw sensor points of runs whose purpose is
 served, keeping truth events and forecasts; for mini-smoke-1, base-smoke-1/2/3, dev-s1, dev-s2 and dev-s2-drift (void). Kept:
 dev-s1-drift and dev-s3 (inputs of the verdict dry run).
+
+## Night 2026-10-24/25 results: job P on dev seed 3 (C5b/C5c), and the escalation step failed
+
+**Run.** `mini-p3` (seed 3) 23:00-04:03, same bench as p1/p2 (3 days, 1 warm-up, five streams, fixed `lin_lag`, rules twin,
+gemma3:4b and qwen3:8b through Ollama). Mini disk 85 -> 84 GB free; VM disk 59 GB free of 98; Influx data 30 GB.
+**Result (MAE ratio vs fixed, macro; worst stream).** Rules 0.947 (worst wind 1.000, C5b pass); qwen3:8b 0.970 (worst pressure 1.010,
+pass at the 1 % edge); gemma3:4b 1.000 (never switched, fail). Gains again on solar (0.86-0.87) and temp (rules 0.949). C5c: gemma3:4b
+p50 11.7 s, 0 invalid; qwen3:8b p50 55 s, p95 151 s, invalid 1.6 %, 68 % of switches accepted, 4 calls hit the 300 s timeout.
+**Dev reading of C5b on the triple (seeds 1-3, not a verdict).** Rules twin 0.950 / 0.958 / 0.947, passes on 2 of 3 (seed 2 pressure
+1.175). qwen3:8b 0.984 / 0.961 / 0.970, passes on 1 of 3, and only at the edge (pressure 1.079 / 1.168 / 1.010); on every seed it is
+0.3-3.4 points behind the rules twin. gemma3:4b 1.000 on all three (a no-op). Wording for the agent arms on dev: "lift not shown";
+the smallest model that passes does not exist on dev. H7 ("|delta MAE| < 1 %") is wrong for qwen3:8b against the fixed model
+(1.6-3.9 %), right in spirit against the rule: the model adds nothing the rule does not.
+**Incident.** `escalation: failed`: `score()` wrote `summary.json` into `runs/escalation/`, which does not exist before the first night
+asks anything, so e11 was never asked. Fixed (4fd6a2d, test added); e11 is asked tonight. The inbox run starts one night late.
+**Decision.** Road step 1 done. Recipe section 5 updated to seeds 1-3.
+
+Night 2026-10-24/25: finding (C5b dev reading on three seeds: the rules twin passes on 2 of 3, qwen3:8b on 1 of 3 at the edge; recipe claim changed).
+
+## Iteration 19 (2026-10-25): job R model arms, gemma-4-e4b and R2 (road 1c, C5d pilot)
+
+**Run.** Air on power, LM Studio, 16k context, one model at a time, about 25 min in all; the same 8 windows as iteration 16
+(`reports/review-pilot-g4e-2026-10-25.md`). gemma-4-e4b R3 and R4, then R2 for gemma-4-e4b and Qwen3-14B.
+**Result.** R1 0.858. gemma-4-e4b: R3 0.229 (-0.63), R4 0.858 (no override, so equal to R1; fault-stream precision 0.333, recall 0.8),
+R2 0.801 (-0.058 [-0.330, +0.055]). Qwen3-14B R2 0.621 (-0.238 [-0.516, -0.112]): its labels are exactly R0's (16 / 29 / 1), so per
+alert it follows the outage cue and ignores the hindsight numbers. All summaries valid, 4-11 s per window for the 4B model.
+**Read honestly.** Pilot, 8 windows, one run each. Both sizes now point the same way: a model reading the whole hour alone (R3) is far
+below the rules; per alert (R2) it is at best level with them; as writer on top of the rules (R4) the 4B model kept R1's labels
+(so "safe as report writer" on the pilot, 1.0 validity, 0 change) while the 14B model's overrides cost 0.08. Fault streams written by
+either model are worse than the rules' (precision 0.33-0.42 vs 0.83). The smaller model was the better writer here because it did less.
+**Decision.** Next on 1c: the full 40 windows in chunks (`--until`), R2-R4 for both, about 30 min a pass. Recipe: fault streams come from
+the rules, the model writes words only.
+
+Iteration 19: finding (job R pilot on two model sizes; recipe claim on the model as writer changed). Open ideas: 20 (BACKLOG.md items and sub-items, 0 not counted).
