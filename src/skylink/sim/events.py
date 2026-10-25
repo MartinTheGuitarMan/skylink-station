@@ -116,7 +116,7 @@ def _process_events(rng, stream, duration_s, start_id):
 
 
 def _wear_events(seed, stream, duration_s, wear, start_id):
-    """One wear ramp: mag = final background factor F, aux = ramp duration D (s); held at F after t1 = t0 + D.
+    """One wear ramp of the radar pedestal bearing: mag = final factor F, aux = ramp duration D (s); held after t1 = t0 + D.
     Own RNG, so turning wear on changes no other event of the seed."""
     digest = hashlib.sha256(f"{seed}:{stream}:wear".encode()).digest()
     rng = np.random.default_rng(int.from_bytes(digest[:8], "little"))

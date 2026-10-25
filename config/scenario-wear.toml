@@ -12,7 +12,7 @@ streams = ["vibration"]
 count = 1
 onset_days = [3.0, 7.0]
 ramp_days = [4.0, 14.0]
-factor = [1.5, 3.0]        # final multiplier of the broadband background
+factor = [1.5, 3.0]        # final multiplier of background and 12 rpm line (radar pedestal bearing)
 
 [skylink]
 mean_up_s = 14400

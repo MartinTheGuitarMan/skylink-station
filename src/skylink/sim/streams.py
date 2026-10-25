@@ -110,10 +110,11 @@ class StreamGen:
         gain = np.sqrt((1 - r * r) * ((1 + r * r) ** 2 - 4 * r * r * np.cos(th) ** 2) / (1 + r * r))
         zi = self.zi.get("ar2", np.zeros(2))
         bg, self.zi["ar2"] = lfilter([gain], a, self.rng.normal(0, 1.0, self.n), zi=zi)
-        for e in self.plan.kind("wear"):  # bearing wear: the broadband background grows, held after the ramp
-            u = np.clip((t - e.t0) / e.aux, 0.0, 1.0)
-            bg = bg * (1 + (e.mag - 1) * u * u)
+        # accelerometer on the radar pedestal: 12 rpm antenna line, ~2 Hz mast sway, drive bursts on scan changes
         x = bg + 0.8 * np.sin(2 * np.pi * 0.2 * t)
+        for e in self.plan.kind("wear"):  # slewing-bearing wear: background and 12 rpm line grow, held after the ramp
+            u = np.clip((t - e.t0) / e.aux, 0.0, 1.0)
+            x = x * (1 + (e.mag - 1) * u * u)
         for e in self.plan.overlapping("burst", t[0], t[-1] + 1):
             m = (t >= e.t0) & (t < e.t1)
             dt = t[m] - e.t0

@@ -28,4 +28,4 @@ def test_wear_leaves_the_signal_alone_until_onset_then_grows():
     assert np.array_equal(xa[:600 * hz], xb[:600 * hz])
     rms = lambda x: float(np.sqrt(np.mean(x * x)))
     late = slice(1800 * hz, 2400 * hz)  # held at F after the ramp
-    assert 2.0 < rms(xb[late]) / rms(xa[late]) < 3.0  # the 0.2 Hz line and bursts do not grow
+    assert 2.5 < rms(xb[late]) / rms(xa[late]) <= 3.0 + 1e-9  # background and 12 rpm line grow, bursts do not
