@@ -201,3 +201,10 @@ After every outage cycle, points stored in the InfluxDB raw bucket = points the 
     delay of days. *Added before runs:* the online error ratio rises to about F by the end of the ramp, unseen by the detector; (b') flags
     later than (b) or misses the slowest ramps; arm (b) passes on vibration but gives more than 0.05 false alerts per day on pressure
     (slow weather and fronts are not in a 2-day reference), so it is a rule for machine streams, not weather.
+- 2026-10-25 (later the same day): **C9 event made physical, owner's choice.** The vibration sensor is an accelerometer on the
+  pedestal of the station's scanning weather radar: the antenna turns at 12 rpm (the 0.2 Hz line), the mast sways near 2 Hz (the
+  resonance), and the bursts are the drive speeding up or slowing down when the scan pattern changes. `wear` is the radar's slewing
+  bearing wearing out. Definition change, written before any C9 number was read: g(t) now multiplies the 12 rpm line as well as the
+  broadband background (a worn bearing runs rough at the rotation rate too), so the 1 s RMS of the healthy signal grows by exactly
+  g(t); bursts stay as they are. Same draws, same RNG, same onset, ramp and factor ranges, same arms, metrics, pass rule, seeds and H14.
+  The first job-W run (old definition) finished but was deleted unread; the dev seeds are therefore still unseen for C9.
