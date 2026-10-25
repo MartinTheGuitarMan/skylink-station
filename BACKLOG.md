@@ -42,7 +42,7 @@ written off with a reason (stop rule, `docs/success-criteria.md`). New ideas go 
 - **Post-switch outcome field in the call log** (3f): no criterion reads it.
 - **Ontology experiments 2-5** (1c): O1 answered the question (a small station ontology is worth about a model size); the rest refine it.
 - **Escalation follow-ups (a)-(c)** (1e): (a) is the inbox run itself (open item 4); (b) and (c) are open items 5 and 6.
-- **Checked reference for wear** (1h, C9 follow-up): moved to the next experiment (virtual pump sensor), where a checked reference
+- **Checked reference for wear** (1h, C9 follow-up): moved to the next experiment (Water Plant Co, its virtual pump sensors), where a checked reference
   is the central question.
 - **Score charts** and **InfluxDB downsampling** (7, 8): presentation only; no finding can come from them.
 - **Persist the Node-RED buffer** (9): C8 already voids a run hit by a restart; mitigation for the locked runs: no restarts or
