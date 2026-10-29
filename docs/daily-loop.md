@@ -10,6 +10,9 @@ morning), after the night on the night host. Do one pass, report, stop. The rule
    **Disk watch** (owner, 2026-10-24: keep the Influx raw data, but watch it): `status` prints the night host's free disk and the Influx
    data size. Put both in the report's first line. Under 20 GB free, say so under `Behöver dig:`; the fix on the table is to drop a
    run's raw data after its C8 check (backlog), which is the owner's call. Never delete data on the night host to make room.
+1b. **Missed passes.** `uv run python scripts/missed_passes.py --main-commits` (reads `runs/night/night-log.tsv`, see
+   `docs/night-fallback.md`). If it lists nights, put its line in this pass's journal entry as is, note which code the night host
+   ran, and go on with the pass: do not redo the missed days, and do not count a fallback run as a finding.
 2. **Write up the night.** In `JOURNAL.md`: one entry per finished item (Why, Result, Read honestly, Decision) and the line
    `Night YYYY-MM-DD: finding` or `no finding` (a finding is defined in the Amendments of `docs/success-criteria.md`).
    Log incidents too: an item cut at the window end, a failure, `disk low`, `nothing ran`. Update `docs/recipe.md` (tags
