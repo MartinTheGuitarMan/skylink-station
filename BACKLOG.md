@@ -21,6 +21,8 @@ written off with a reason (stop rule, `docs/success-criteria.md`). New ideas go 
    night), enough to read H8's cost ratio and the complexity break-even.
 
 ## Closed (done)
+- **Night fallback** (2026-10-29): `nightly.sh` runs `config/default-queue.txt` (dev seeds) when nothing queued ran, logs the commit
+  in `runs/night-log.tsv`; the pass lists missed passes with `scripts/missed_passes.py`. See `docs/night-fallback.md`.
 - **Bootstrap CI of the macro MAE ratio in `c5b_check`** (2026-10-29): paired on hours across streams; the bench stores
   per-hour sums from now on. The dev job P readings (seeds 1-3) predate it and stay point readings.
 - **Base arm and backfill strategies** (RQ1): C6 ratios per phase and C3 recovery on dev seeds 1-3 (iterations 2, 12); both are in
