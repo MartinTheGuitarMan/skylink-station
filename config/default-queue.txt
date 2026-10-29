@@ -1,0 +1,8 @@
+# Night fallback queue, same columns as queue.txt: <run-id> <scenario> <seed> <days> <speed> [edge-config]
+# nightly.sh runs this only when no queued work ran that night (docs/night-fallback.md). DEV SEEDS ONLY (1-3):
+# a line with a locked seed (101-105) is refused. Finished runs are skipped, so this list is used up one run at a time;
+# when it is exhausted the fallback does nothing and the night is logged as idle. One 7-day run at 60x is about 3 h 40 min.
+# Both lines are replicates of dev runs, which test the C7 claim (a seed replays exactly: same chain hash) on the code the
+# night host has, and give the locked-run recipe more dev evidence at no cost to the verdict.
+dev-s3-r config/scenario-default.toml 3 7 60
+dev-s3-r2 config/scenario-default.toml 3 7 60

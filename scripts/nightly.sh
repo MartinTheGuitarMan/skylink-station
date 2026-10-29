@@ -6,6 +6,9 @@
 # Installed on the night host as the system daemon se.skylink.nightly (ops/README.md).
 # Stops early when free disk drops below MIN_FREE_GB (default 3) or the colima VM disk that holds InfluxDB below MIN_VM_FREE_GB (6). Writes runs/last-night.txt: one line per
 # item (ok / stopped / cut / failed), read by the daytime loop (docs/daily-loop.md).
+# Night fallback: when the queues above gave nothing to do (no new work since the last pass), it runs
+# config/default-queue.txt (dev seeds only), runs whatever code the night host has, and appends the commit it ran
+# to runs/night-log.tsv (docs/night-fallback.md). The daily pass reads that log with scripts/missed_passes.py.
 set -u
 cd "$(dirname "$0")/.."
 set -a; . ./.env; set +a
@@ -15,6 +18,9 @@ MIN_FREE_GB="${MIN_FREE_GB:-3}"
 MIN_VM_FREE_GB="${MIN_VM_FREE_GB:-6}"   # InfluxDB lives on the colima VM disk (100 GB since 2026-10-24); it filled up on 2026-10-19 and voided dev-s2-drift
 SUMMARY=runs/last-night.txt
 ran=0
+ran_main=0   # set when a queued simulation, collect, agent eval or bench ran (the escalation inbox does not count)
+mode=idle
+started=0
 
 free_gb() { df -g . | awk 'NR==2 {print $4}'; }
 vm_free_gb() { docker exec skylink-influxdb-1 df -Pk /var/lib/influxdb2 2>/dev/null | awk 'NR==2 {print int($4/1048576)}'; }
@@ -32,11 +38,18 @@ hour=$(TZ=Europe/Stockholm date +%H)
 if [ "${FORCE:-0}" != 1 ] && [ "$hour" -ge 6 ] && [ "$hour" -lt 23 ]; then
   echo "outside the night window (23:00-06:00 Europe/Stockholm); FORCE=1 overrides" >&2; exit 0
 fi
-export PATH=/opt/homebrew/bin:/usr/local/bin:$PATH
+export PATH=$PATH:/opt/homebrew/bin:/usr/local/bin
 echo "night $(TZ=Europe/Stockholm date '+%F %H:%M'), $(free_gb) GB free" > "$SUMMARY"
-trap 'note "end $(TZ=Europe/Stockholm date +%H:%M), $(free_gb) GB free"; [ $ran = 0 ] && note "nothing ran"' EXIT
+# fingerprint of the queues the daily pass fills; unchanged since the last night = no pass queued anything
+fingerprint() { cat config/queue.txt config/agent-queue.txt config/proposal-queue.txt config/verdict-queue.txt 2>/dev/null | shasum | cut -c1-12; }
+commit=$(git rev-parse --short HEAD 2>/dev/null || echo unknown); git diff --quiet HEAD 2>/dev/null || commit="$commit+dirty"
+night=$(TZ=Europe/Stockholm date +%F); fp=$(fingerprint); prev_fp=$(tail -1 runs/night-log.tsv 2>/dev/null | cut -f6)
+queue_changed=yes; [ "$fp" = "$prev_fp" ] && queue_changed=no
+trap 'note "end $(TZ=Europe/Stockholm date +%H:%M), $(free_gb) GB free"; [ $ran = 0 ] && note "nothing ran"
+      [ $started = 1 ] && printf "%s\t%s\t%s\t%s\t%s\t%s\n" "$night" "$commit" "$queue_changed" "$mode" "" "$fp" >> runs/night-log.tsv' EXIT
 why=$(stop_reason); [ -n "$why" ] && { note "not started: $why"; echo "$why" >&2; exit 0; }
 colima status >/dev/null 2>&1 || colima start --cpu 4 --memory 6 --disk 100 --vm-type vz >/dev/null 2>&1
+started=1; note "code: $commit"
 docker compose up -d >/dev/null 2>&1 || { note "failed: docker stack not available"; echo "docker stack not available" >&2; exit 1; }
 
 # ---- escalation inbox (C5e inbox run, docs/escalation.md): seconds of work, before anything long --------
@@ -46,18 +59,21 @@ if [ -f config/escalation-queue.txt ]; then
   else note "escalation: failed ($(echo "$out" | tail -1 | cut -c1-120))"; fi
 fi
 
-while read -r run scen seed days speed edge; do
-  case "$run" in ""|\#*) continue;; esac
-  if [ -f "runs/$run/summary.json" ] && grep -q '"finished": true' "runs/$run/summary.json"; then continue; fi
-  why=$(stop_reason); [ -n "$why" ] && { echo "$why"; note "stop: $why"; break; }
-  why=$(vm_reason); [ -n "$why" ] && { echo "$why"; note "sim queue skipped: $why"; break; }
-  echo "$(date '+%F %T') run $run (seed $seed, $days d, ${speed}x)"; ran=1
-  resume=""; [ -f "runs/$run/checkpoint.json" ] && resume="--resume"
-  nice -n 15 uv run skylink-sim run --config "$scen" --run-id "$run" --seed "$seed" --days "$days" \
-      --speed "$speed" --until "$END" $resume
-  curl -s -XPOST localhost:8000/flush >/dev/null
-  if grep -qs '"finished": true' "runs/$run/summary.json"; then note "sim $run: ok"; else note "sim $run: stopped (resumes next night)"; fi
-done < config/queue.txt
+sim_queue() {  # $1 = queue file
+  while read -r run scen seed days speed edge; do
+    case "$run" in ""|\#*) continue;; esac
+    if [ -f "runs/$run/summary.json" ] && grep -q '"finished": true' "runs/$run/summary.json"; then continue; fi
+    why=$(stop_reason); [ -n "$why" ] && { echo "$why"; note "stop: $why"; break; }
+    why=$(vm_reason); [ -n "$why" ] && { echo "$why"; note "sim queue skipped: $why"; break; }
+    echo "$(date '+%F %T') run $run (seed $seed, $days d, ${speed}x)"; ran=1; ran_main=1
+    resume=""; [ -f "runs/$run/checkpoint.json" ] && resume="--resume"
+    nice -n 15 uv run skylink-sim run --config "$scen" --run-id "$run" --seed "$seed" --days "$days" \
+        --speed "$speed" --until "$END" $resume
+    curl -s -XPOST localhost:8000/flush >/dev/null
+    if grep -qs '"finished": true' "runs/$run/summary.json"; then note "sim $run: ok"; else note "sim $run: stopped (resumes next night)"; fi
+  done < "$1"
+}
+sim_queue config/queue.txt
 
 # ---- verdict collect (scripts/verdict.py), minutes a run, after the simulations so tonight's finished runs are included ------
 # config/verdict-queue.txt lines: <label>|<run,run,...>|<c2-run or empty>   collects only finished runs; done when all files exist
@@ -72,7 +88,7 @@ if [ -f config/verdict-queue.txt ]; then
     [ -n "$c2run" ] && [ ! -f "runs/verdict/$label/resource.json" ] && grep -qs '"finished": true' "runs/$c2run/summary.json" && c2arg="--c2-run $c2run"
     [ -z "$todo" ] && [ -z "$c2arg" ] && continue
     why=$(stop_reason); [ -n "$why" ] && { note "stop: $why"; break; }
-    ran=1; [ -z "$todo" ] && todo=$(echo "$vruns" | cut -d, -f1)   # --runs is required; re-collecting one run is cheap
+    ran=1; ran_main=1; [ -z "$todo" ] && todo=$(echo "$vruns" | cut -d, -f1)   # --runs is required; re-collecting one run is cheap
     if nice uv run python scripts/verdict.py collect --label "$label" --runs "$todo" $c2arg > "runs/verdict-$label.log" 2>&1
     then note "verdict collect $label: ok ($todo${c2arg:+, c2 $c2run})"
     else note "verdict collect $label: failed (see runs/verdict-$label.log)"; fi
@@ -87,7 +103,7 @@ if [ -f config/agent-queue.txt ] && command -v ollama >/dev/null; then
     case "$id" in ""|\#*) continue;; esac
     [ -f "runs/agent/$id/report.md" ] && continue
     why=$(stop_reason); [ -n "$why" ] && { echo "$why (agent)"; note "stop: $why"; break; }
-    echo "$(date '+%F %T') agent eval $id ($models, $per per class)"; ran=1
+    echo "$(date '+%F %T') agent eval $id ($models, $per per class)"; ran=1; ran_main=1
     [ -f runs/agent/cases.json ] || nice uv run --extra agent python scripts/agent_eval.py build --seeds 1,2,3 --days 7
     nice uv run --extra agent python scripts/agent_eval.py run --models "$models" --per-class "$per" --id "$id" --timeout 300 --until "$END"
     if [ -f "runs/agent/$id/report.md" ]; then note "agent eval $id: ok"; else note "agent eval $id: stopped (resumes next night)"; fi
@@ -102,7 +118,7 @@ if [ -f config/proposal-queue.txt ] && command -v ollama >/dev/null; then
     case "$id" in ""|\#*) continue;; esac
     [ -f "runs/agent/proposals-$id/result.json" ] && continue
     why=$(stop_reason); [ -n "$why" ] && { echo "$why (proposals)"; note "stop: $why"; break; }
-    echo "$(date "+%F %T") proposal bench $id (seed $seed, $days d, $streams, $models)"; ran=1
+    echo "$(date "+%F %T") proposal bench $id (seed $seed, $days d, $streams, $models)"; ran=1; ran_main=1
     nice uv run --extra agent python scripts/agent_proposals.py --seed "$seed" --days "$days" --streams "$streams" \
         --models "$models" --out "runs/agent/proposals-$id" --until "$END" > "runs/agent/proposals-$id.txt" 2>&1
     case $? in
@@ -112,3 +128,16 @@ if [ -f config/proposal-queue.txt ] && command -v ollama >/dev/null; then
     esac
   done < config/proposal-queue.txt
 fi
+
+# ---- night fallback (docs/night-fallback.md) ---------------------------------------------------------
+# Nothing queued ran: the daily pass did not add work (day host off or app closed). Run config/default-queue.txt instead
+# (dev seeds only: a locked seed in that file is refused). The code is whatever the night host has; $commit is in the log.
+mode=queued; [ $ran_main = 0 ] && mode=idle
+if [ $ran_main = 0 ] && [ -f config/default-queue.txt ]; then
+  note "fallback: no queued work ran (queue changed since last night: $queue_changed); default queue on code $commit"
+  safe=$(mktemp); grep -v '^[[:space:]]*#' config/default-queue.txt | awk 'NF && ($3 >= 101 && $3 <= 105) {print "refused locked seed: " $1 > "/dev/stderr"; next} NF' > "$safe"
+  sim_queue "$safe"; rm -f "$safe"
+  [ $ran_main = 1 ] && mode=fallback
+  [ $mode = idle ] && note "fallback: default queue exhausted or blocked"
+fi
+exit 0
