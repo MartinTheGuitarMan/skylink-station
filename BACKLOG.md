@@ -5,22 +5,24 @@ written off with a reason (stop rule, `docs/success-criteria.md`). New ideas go 
 
 ## Open
 1. **Locked-seed verdict runs** (seeds 101-105, 7 days, all streams; road step 5), after their two inputs: the C2 run at 1x
-   (queued as `dev-c2-1x`) and the C7 replicate (one locked seed twice, both logged).
-2. **Bootstrap CI of the macro MAE ratio in `c5b_check`**: the C5b pass rule needs the paired CI. Small.
-3. **Job R, retrospective review (C5d)**: rules arm done on dev seed 3 (iteration 13, R1 0.943). Pilot on 8 windows done for
+   (`dev-c2-1x` ran 2026-10-25/26; collect queued 2026-10-29) and the C7 replicate (one locked seed twice, both logged).
+   One 7-day run fits a night (3 h 40 min), so about six nights.
+2. **Job R, retrospective review (C5d)**: rules arm done on dev seed 3 (iteration 13, R1 0.943). Pilot on 8 windows done for
    Qwen3-14B and gemma-4-e4b, R2-R4 (iterations 16, 19). Left: 40 windows with two model sizes; then ask the owner whether job R joins
    the locked runs.
-4. **Escalation inbox** (C5e inbox run): running e11-e17 every night; read the pooled result after 5 answered nights (about
-   2026-10-30/31) and write it up.
-5. **Knowledge or model?** Give Qwen3-14B and gemma-4-e4b the station physics text Claude had (`docs/slm-backend.md`) on the 200
+3. **Escalation inbox** (C5e inbox run): e11-e14 were asked 2026-10-25 to 10-28 but answered only on 2026-10-29 (no pass
+   ran 10-26 to 10-28); read the pooled result after 5 answered nights and write it up.
+4. **Knowledge or model?** Give Qwen3-14B and gemma-4-e4b the station physics text Claude had (`docs/slm-backend.md`) on the 200
    escalation edge cases; if most of the gap to Claude (0.935 vs 0.76) closes, the edge needs to escalate far less. Pre-register
    first. One short day-host run on stored cases.
-6. **Teacher loop.** After 5+ inbox nights: Claude's reviewed answers (`examples.jsonl` on the night host) as the 4B edge model's
+5. **Teacher loop.** After 5+ inbox nights: Claude's reviewed answers (`examples.jsonl` on the night host) as the 4B edge model's
    worked examples; does its accuracy on the residue rise night by night? Pre-register first.
-7. **ARF cost (H8, RQ5)**: a short per-step cost measurement of the ARF regressor on the day host (a few hours of event time, not a
+6. **ARF cost (H8, RQ5)**: a short per-step cost measurement of the ARF regressor on the day host (a few hours of event time, not a
    night), enough to read H8's cost ratio and the complexity break-even.
 
 ## Closed (done)
+- **Bootstrap CI of the macro MAE ratio in `c5b_check`** (2026-10-29): paired on hours across streams; the bench stores
+  per-hour sums from now on. The dev job P readings (seeds 1-3) predate it and stay point readings.
 - **Base arm and backfill strategies** (RQ1): C6 ratios per phase and C3 recovery on dev seeds 1-3 (iterations 2, 12); both are in
   the verdict pipeline (iteration 18).
 - **Drift mechanism that fits increment models**: closed on dev seeds in iteration 8 (C4/H5 not supported). Locked runs report both

@@ -27,7 +27,7 @@ morning), after the night on the night host. Do one pass, report, stop. The rule
 3. **Build the next step.** Take the first open item on the road below. Small commits, one change at a time,
    `uv run pytest -q` green before each commit. Offline checks on the day host are fine if short (under 30 min, `nice`d).
 4. **Queue tonight.** Add lines to `config/queue.txt`, `config/agent-queue.txt` or `config/proposal-queue.txt`.
-   The window is 7 h (23:00-06:00). Budget from measured wall times: a 7-day simulation at 60x about 3.5 h; the job P bench,
+   The window is 7 h (23:00-06:00). Budget from measured wall times: a 7-day simulation at 60x about 3 h 40 min (dev-s2-r, 2026-10-26), so one fits a night, two do not; the job P bench,
    3 days, five streams, gemma3:4b + qwen3:8b about 6 h (qwen3:8b is 5 of those). A cut simulation or agent eval resumes; a cut
    job P bench starts over, so never queue one that does not fit. Do not leave a night empty when something useful fits:
    a replicate on another dev seed is better than nothing.
@@ -46,17 +46,19 @@ morning), after the night on the night host. Do one pass, report, stop. The rule
    Qwen3-14B and gemma-4-e4b, R2-R4 (pilot on 8 windows done, iterations 16 and 19), then the full 40 windows in chunks
    (`review_eval.py run --until`). Battery: skip, say so.
 1d. ~~**Ontology experiments**~~ Experiments 2-5 written off 2026-10-25 (owner; O1 answered the question). Instead: backlog open
-   items 5 (knowledge or model) and 7 (ARF cost), on the day host like 1c.
+   items 4 (knowledge or model) and 6 (ARF cost), on the day host like 1c.
 2. ~~**Backlog 1, base arm and backfill strategies** (C3, C6).~~ Done on dev seeds 1-3 (iteration 12): C6 ratios per phase
    (`--base`) and C3 recovery (`--recovery`). The verdict pipeline must take C3's best River model only and add the edge control.
-3. ~~**Jobs N and E**~~ Written off 2026-10-25 (owner): no verdict depends on them. Instead: the bootstrap CI for C5b (backlog
-   open item 2) before the locked runs.
+3. ~~**Jobs N and E**~~ Written off 2026-10-25 (owner): no verdict depends on them. ~~Instead: the bootstrap CI for C5b~~ Built
+   2026-10-29 (`jobs.macro_ratio_ci`, paired on hours; `c5b_check` and `verdict.py decide` use it when the bench has per-hour sums).
 4. ~~**Verdict pipeline.**~~ Built and dry-run on dev (iteration 18): `scripts/verdict.py collect` on the night host (about 5 min a
    run), `decide` anywhere, `reports/verdict-<label>.md`. Before the locked runs it still needs two inputs the dry run showed missing:
    (a) a **C2 run at 1x** on the night host (dev seed, all five streams, about 2 h of the night window; then `collect --c2-run`;
-   queued 2026-10-25 as `dev-c2-1x`), and
+   ran 2026-10-25/26 as `dev-c2-1x`; its collect is in `config/verdict-queue.txt`, which `nightly.sh` works through after the
+   simulations since 2026-10-29), and
    (b) a **C7 replicate**: run one locked seed twice (both logged) and pass `--replicate`.
-5. **Locked runs.** Seeds 101-105, 7 days, all five streams, `config/scenario-default.toml` (about two nights), then C5a/C5b on
+5. **Locked runs.** Seeds 101-105, 7 days, all five streams, `config/scenario-default.toml` (one 7-day run a night: five seeds plus the C7 replicate is about six nights; queue each
+   run's collect under label `locked` in `config/verdict-queue.txt`), then C5a/C5b on
    locked cases. Default unless the owner says otherwise: job R (C5d) and escalation (C5e) are scored on the locked runs too,
    as reported claims outside the verdict rule. Log every locked run in the journal. Write `reports/verdict.md` with the final form of the recipe.
 6. **Stop rule (stable state).** After the verdict, count passes: the experiment is stable when three consecutive passes give `no finding` **and** no idea is left open (owner, 2026-10-24: "no new findings and ideas"). Every pass ends its journal entry with `Open ideas: N` from `BACKLOG.md`; an idea leaves the list only when tested or written off with a reason. A new idea resets the count. Then write the final
