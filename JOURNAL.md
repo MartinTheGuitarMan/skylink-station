@@ -644,3 +644,34 @@ experiment. **Decision.** Remaining work: the locked verdict and its inputs, the
 knowledge-or-model, the teacher loop, ARF cost.
 
 Triage: no finding (backlog only). Open ideas: 7 (BACKLOG.md, Open).
+
+## Nights 2026-10-25/26 to 2026-10-28/29, and the pass of 2026-10-29
+
+**Incident: no daily pass from 2026-10-26 to 2026-10-28.** The night host stayed on the code of 2026-10-25 06:33 (15 commits behind)
+and nothing was queued after the first night, so the last three nights ran only the escalation step (`nothing ran` otherwise). The
+inbox questions of e11-e14 waited unanswered. Not found why the passes did not run (the day host is often off); noted, not worked around.
+An uncommitted one-line wording change in `scripts/night-sync.sh` (not made by this pass) is left as it was.
+Disk: night host 108 GB free, Influx data 40 GB, VM disk 50 GB free of 98.
+
+**Night 2026-10-25/26: `dev-c2-1x` and `dev-s2-r`.** Why: road 4a (a 1x run for C2) and a replacement of the void dev-s2-drift.
+Result: `dev-c2-1x` (seed 3, 2 h at 1x, 23:00-00:59) finished, 3570 posts; `dev-s2-r` (seed 2, 7 d at 60x, 00:59-04:39, 3 h 40 min)
+finished with the same chain hash as dev-s2-drift (f421e217...): the simulator replays a seed exactly, across a week of code changes.
+Read honestly: C2 is not measured yet (needs `verdict.py collect --c2-run` on the night host) and dev-s2-r's C8 (no raw hole) is not
+checked yet. The measured 3 h 40 min means two 7-day runs do not fit one night: the locked runs take about six nights, not two.
+Decision: the collect now runs at night from a queue (below); both checks are read tomorrow.
+
+**Escalation inbox (C5e).** e11-e14 answered blind from the facts and the station physics (gust 3-15 s, spike 1-3 samples, stuck =
+flat, step = offset for hours; drive kicks 2-8 s): 150 answers, 111 real_event, 39 sensor_fault, 18 kept as examples, all pass
+`check`. Agreement with the edge's label: 137 of 150; I differ mostly on wind alerts with z >= 10 that hold 3-7 s (I read gusts) and
+1-2 s jumps inside partly flat stretches (I read a frozen sensor). Truth not looked at. Sent with `night-sync.sh answers`.
+
+**Built.** (1) `nightly.sh` works through `config/verdict-queue.txt` after the simulations (finished runs only, done when the files
+exist), so a locked run is collected the night it ends; sandbox-tested with stubs. (2) The paired bootstrap CI of the C5b macro MAE
+ratio (`jobs.macro_ratio_ci`, hours resampled jointly across streams and arms); `c5b_check` requires its upper end < 1 when the bench
+has per-hour sums, which `agent_proposals.py` now stores. The dev job P readings stay point readings (no per-hour sums); recipe says so.
+Road 1c (job R, 40 windows) skipped: the day host is on battery.
+**Tonight.** `dev-s1-r` (seed 1, 7 d, 60x: a replicate of dev-s1-drift on the new code; its hash must be 91d31f49...), then
+`verdict collect dev-r` (dev-s2-r, dev-s1-r, C2 from dev-c2-1x). Escalation e15 asked.
+
+Night 2026-10-25/26: no finding (runs done, nothing scored yet). Nights 2026-10-26/27 to 2026-10-28/29: nothing ran (no pass, empty queue).
+Open ideas: 6 (BACKLOG.md, Open).
