@@ -99,18 +99,44 @@ def summarise_log(path: str | Path) -> dict:
     return out
 
 
-def c5b_check(rows: list[dict], arm: str, min_gain: float = 0.03, max_loss: float = 0.01) -> dict:
+def c5b_check(rows: list[dict], arm: str, min_gain: float = 0.03, max_loss: float = 0.01, hours: dict | None = None) -> dict:
     """C5b on the rows of `scripts/agent_proposals.py`: macro mean over (stream, horizon) of MAE ratio vs the fixed
     twin must be <= 1 - min_gain, and no stream may be worse than 1 + max_loss. Unit-free, so streams can be pooled.
-    The bootstrap CI of the macro ratio is not computed here (backlog); per-row CIs are in the rows."""
+    With the bench's per-hour sums (`hours`, result.json since 2026-10-29) the paired bootstrap CI of the macro ratio
+    must also exclude 1 (the pre-registered "CI excluding 0" on the lift); without them `ci_checked` is False."""
     mine = [r for r in rows if r["arm"] == arm]
     if not mine:
         return {"arm": arm, "pass": False, "why": "no rows"}
     macro = sum(r["ratio_vs_fixed"] for r in mine) / len(mine)
     worst = max(mine, key=lambda r: r["ratio_vs_fixed"])
     ok = macro <= 1 - min_gain and worst["ratio_vs_fixed"] <= 1 + max_loss
+    ci = macro_ratio_ci(hours, arm) if hours else None
+    if ci:
+        ok = ok and ci[1] < 1
     return {"arm": arm, "macro_ratio": round(macro, 4), "worst": f"{worst['stream']}/{worst['h']}", "worst_ratio": worst["ratio_vs_fixed"],
-            "pass": bool(ok)}
+            "macro_ci": ci, "ci_checked": ci is not None, "pass": bool(ok)}
+
+
+def macro_ratio_ci(hours: dict, arm: str, n_boot: int = 2000, seed: int = 0) -> list[float] | None:
+    """Paired bootstrap CI (2.5, 97.5 %) of the macro MAE ratio arm/fixed. `hours`: {"stream/h": {arm: {hour: [n, abs_err]}}}.
+    One resample draws hours with replacement and uses the same hours for every (stream, horizon) and both arms, so the
+    streams' common weather stays paired. Only hours every key has for both arms are used."""
+    import numpy as np
+    keys = [k for k, v in sorted(hours.items()) if arm in v and "fixed" in v]
+    if not keys:
+        return None
+    common = set.intersection(*(set(hours[k][arm]) & set(hours[k]["fixed"]) for k in keys))
+    hs = sorted(common, key=int)
+    if len(hs) < 2:
+        return None
+    a = np.array([[hours[k][arm][h] for h in hs] for k in keys], dtype=float)       # keys x hours x (n, err)
+    f = np.array([[hours[k]["fixed"][h] for h in hs] for k in keys], dtype=float)
+    idx = np.random.default_rng(seed).integers(0, len(hs), (n_boot, len(hs)))
+    def mae(x):                                                                      # -> keys x n_boot
+        s = x[:, idx, :].sum(axis=2)
+        return s[..., 1] / np.maximum(s[..., 0], 1)
+    ratio = (mae(a) / np.maximum(mae(f), 1e-12)).mean(axis=0)
+    return [round(float(np.percentile(ratio, 2.5)), 4), round(float(np.percentile(ratio, 97.5)), 4)]
 
 
 class AsyncAgent:

@@ -60,3 +60,17 @@ def test_c5b_needs_macro_gain_and_no_stream_worse_than_one_percent():
     rows[1]["ratio_vs_fixed"] = 1.02
     assert not c5b_check(rows, "agent:x")["pass"]
     assert not c5b_check([{"arm": "agent:x", "stream": "t", "h": 1, "ratio_vs_fixed": 0.99}] * 2, "agent:x")["pass"]
+
+
+def test_c5b_ci_must_exclude_one_when_hours_are_given():
+    from skylink.agent.jobs import macro_ratio_ci
+    rows = [{"arm": "agent:x", "stream": "temp", "h": 600, "ratio_vs_fixed": 0.90}]
+    steady = {"temp/600": {"fixed": {str(h): [10, 10.0] for h in range(48)}, "agent:x": {str(h): [10, 9.0] for h in range(48)}}}
+    c = c5b_check(rows, "agent:x", hours=steady)
+    assert c["ci_checked"] and c["macro_ci"][1] < 1 and c["pass"]
+    # same mean gain, but carried by a few hours: the CI reaches past 1 and the arm fails
+    noisy = {"temp/600": {"fixed": {str(h): [10, 10.0] for h in range(48)},
+                          "agent:x": {str(h): [10, 1.0 if h < 4 else 10.3] for h in range(48)}}}
+    lo, hi = macro_ratio_ci(noisy, "agent:x")
+    assert lo < 1 < hi and not c5b_check(rows, "agent:x", hours=noisy)["pass"]
+    assert not c5b_check(rows, "agent:x")["ci_checked"] and c5b_check(rows, "agent:x")["pass"]

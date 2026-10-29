@@ -185,7 +185,7 @@ def c5(triage: dict | None, bench: dict | None) -> dict:
                            "holds": bool(best and models[best] >= 0.80 and models[best] >= rules + 0.15)})
     if bench:
         arms = sorted({r["arm"] for r in bench["rows"]} - {"fixed", "rules"})
-        checks = {a: c5b_check(bench["rows"], a) for a in arms}
+        checks = {a: c5b_check(bench["rows"], a, hours=bench.get("hours")) for a in arms}
         out["c5b"].update({"arms": checks, "holds": any(c["pass"] for c in checks.values())})
         out["c5c"].update({"stats": bench.get("stats"), "holds": bool(bench.get("stats"))})
     for k in ("c5a", "c5b", "c5c"):

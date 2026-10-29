@@ -155,7 +155,9 @@ def main():
                          "ratio_vs_fixed": round(float(x[:, 1].sum() / x[:, 0].sum() / (f[:, 1].sum() / f[:, 0].sum())), 4),
                          "ci": [round(float(np.percentile(ratio, 2.5)), 3), round(float(np.percentile(ratio, 97.5)), 3)],
                          "switches": boards[arm].slot(key).switches})
-    res = {"rows": rows, "stats": {k: dict(v) for k, v in stats.items()}, "wall_s": round(time.time() - t0)}
+    per_hour = {f"{k[0]}/{k[1]}": {arm: {str(h): [float(v) for v in served[arm][k][h]] for h in served[arm][k]} for arm in arms}
+                for k in served["fixed"]}
+    res = {"rows": rows, "hours": per_hour, "stats": {k: dict(v) for k, v in stats.items()}, "wall_s": round(time.time() - t0)}
     (out / "result.json").write_text(json.dumps(res, indent=1))
     print("| stream | h | arm | MAE | ratio vs fixed | 95% CI | switches |\n|---|---|---|---|---|---|---|")
     for r in rows:
@@ -163,7 +165,7 @@ def main():
     print(json.dumps(res["stats"]))
     for arm in arms:
         if arm.startswith("agent:") or arm == "rules":
-            print("C5b", json.dumps(c5b_check(rows, arm)))
+            print("C5b", json.dumps(c5b_check(rows, arm, hours=per_hour)))
     for arm in agents:
         print("C5c", arm, json.dumps(summarise_log(out / f"{arms[arm]}.jsonl")))
 
