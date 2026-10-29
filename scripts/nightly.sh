@@ -59,6 +59,26 @@ while read -r run scen seed days speed edge; do
   if grep -qs '"finished": true' "runs/$run/summary.json"; then note "sim $run: ok"; else note "sim $run: stopped (resumes next night)"; fi
 done < config/queue.txt
 
+# ---- verdict collect (scripts/verdict.py), minutes a run, after the simulations so tonight's finished runs are included ------
+# config/verdict-queue.txt lines: <label>|<run,run,...>|<c2-run or empty>   collects only finished runs; done when all files exist
+if [ -f config/verdict-queue.txt ]; then
+  while IFS='|' read -r label vruns c2run; do
+    case "$label" in ""|\#*) continue;; esac
+    todo=""; for r in ${vruns//,/ }; do
+      [ -f "runs/verdict/$label/$r.json" ] && continue
+      grep -qs '"finished": true' "runs/$r/summary.json" && todo="$todo,$r"
+    done
+    todo=${todo#,}; c2arg=""
+    [ -n "$c2run" ] && [ ! -f "runs/verdict/$label/resource.json" ] && grep -qs '"finished": true' "runs/$c2run/summary.json" && c2arg="--c2-run $c2run"
+    [ -z "$todo" ] && [ -z "$c2arg" ] && continue
+    why=$(stop_reason); [ -n "$why" ] && { note "stop: $why"; break; }
+    ran=1; [ -z "$todo" ] && todo=$(echo "$vruns" | cut -d, -f1)   # --runs is required; re-collecting one run is cheap
+    if nice uv run python scripts/verdict.py collect --label "$label" --runs "$todo" $c2arg > "runs/verdict-$label.log" 2>&1
+    then note "verdict collect $label: ok ($todo${c2arg:+, c2 $c2run})"
+    else note "verdict collect $label: failed (see runs/verdict-$label.log)"; fi
+  done < config/verdict-queue.txt
+fi
+
 # ---- agent evaluations (local models through mcp-minions), after the simulation queue --------------
 # config/agent-queue.txt lines: <id>|<per-class cases>|<name=model-spec,...>   (ollama:<model> for Ollama)
 if [ -f config/agent-queue.txt ] && command -v ollama >/dev/null; then
