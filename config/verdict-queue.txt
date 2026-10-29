@@ -1,0 +1,2 @@
+# <label>|<run,run,...>|<c2-run or empty>   scripts/verdict.py collect, run by nightly.sh after the simulations; finished runs only
+dev-r|dev-s2-r,dev-s1-r|dev-c2-1x
