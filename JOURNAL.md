@@ -710,3 +710,21 @@ Not done: road 1c (job R, 40 windows); the day host is on power, but this pass k
 
 Night 2026-10-29/30: finding (C2 measured and holds; recipe section 7 gets a measured night-host footprint; C7 and C8 shown working on dev).
 Open ideas: 6 (BACKLOG.md, Open).
+
+## Docker VM off by day (2026-10-30, branch `claude/docker-day-off-840336`, not merged, not on the night host)
+**Why.** The night host's colima VM held about 1.5 GB of RAM (VM process 1.42 GB, helpers about 0.12 GB; read-only `ps` on 2026-10-30
+15:53, idle containers) around the clock, in a machine that also runs larger local models in the 06:00 and 22:00 windows. Owner approved
+building an on-demand VM; the sync and the daemon change wait for the owner.
+**What.** `scripts/vm.sh` (up / stack / down / lease, bounded waits for Docker and InfluxDB health). `nightly.sh` starts the VM after the
+window check and stops it from its EXIT trap (switch `VM_STOP_AFTER_NIGHT`, default on), never under a lease or a running sim, agent,
+verdict or escalate job. A failed cold start is a `failed:` line in `last-night.txt` plus a row in `night-log.tsv`. The night writes a
+`vm disk at end` line before stopping so the disk watch still works by day. `se.skylink.colima` (KeepAlive) is retired by the installer;
+the template is deleted; nightly plist gets `AbandonProcessGroup`. VM disk is 100 GB everywhere (the template said 40). `night-sync.sh
+status` says `VM off`; `drop-raw.sh` starts the VM itself. Also fixed an apostrophe in a `${NIGHT_HOST:?...}` message that made
+`night-sync.sh` fail on bash 3.2 (the main checkout has the same one-line edit uncommitted; same wording).
+**Read honestly.** Tests use stubs for docker and colima: the real cold start, the real `colima stop` time and the launchd behaviour of
+the new daemon set are not verified. Results: no change to any threshold, metric, queue or locked seed; River and Node-RED state is
+rebuilt on `/config` at every run start and resume, so a cold container equals the reset that already happens. Timing: 1-3 minutes of the
+23:00 window go to the start; first minutes run with cold caches (see `docs/vm-on-demand.md`).
+**Decision.** Branch waits for the owner: merge, `night-sync.sh push`, then the admin step in `ops/README.md`. The coding bench in
+`mcp-minions` must start and lease the VM itself (`docs/vm-on-demand.md`).

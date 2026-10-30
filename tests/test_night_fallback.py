@@ -13,7 +13,7 @@ if [ "$1" = run ] && [ "$2" = skylink-sim ]; then
   mkdir -p runs/$id; echo '{"finished": true}' > runs/$id/summary.json; echo "$id" >> runs/sim-calls.txt
 fi
 exit 0''',
-    "docker": '#!/bin/bash\n[ "$1" = exec ] && printf "Filesystem 1024-blocks Used Available\\nx 100000000 1 90000000 1%% /\\n"\nexit 0',
+    "docker": '#!/bin/bash\n[ "$1" = inspect ] && echo healthy\n[ "$1" = exec ] && printf "Filesystem 1024-blocks Used Available\\nx 100000000 1 90000000 1%% /\\n"\nexit 0',
     "colima": "#!/bin/bash\nexit 0",
     "curl": "#!/bin/bash\nexit 0",
 }
@@ -22,7 +22,8 @@ exit 0''',
 def sandbox(tmp: Path, queue: str, default: str) -> Path:
     for d in ("scripts", "config", "runs"):
         (tmp / d).mkdir()
-    shutil.copy(ROOT / "scripts/nightly.sh", tmp / "scripts/nightly.sh")
+    for f in ("nightly.sh", "vm.sh"):
+        shutil.copy(ROOT / "scripts" / f, tmp / "scripts" / f)
     (tmp / ".env").write_text("")
     (tmp / "config/queue.txt").write_text(queue)
     (tmp / "config/default-queue.txt").write_text(default)
@@ -38,7 +39,7 @@ def sandbox(tmp: Path, queue: str, default: str) -> Path:
 
 
 def night(tmp: Path, bindir: Path) -> str:
-    env = {**os.environ, "PATH": f"{bindir}:{os.environ['PATH']}", "FORCE": "1", "WINDOW_END": "23:59", "MIN_FREE_GB": "0"}
+    env = {**os.environ, "PATH": f"{bindir}:{os.environ['PATH']}", "FORCE": "1", "WINDOW_END": "23:59", "MIN_FREE_GB": "0", "VM_BUSY_RE": "no-such-process"}
     subprocess.run(["bash", "scripts/nightly.sh"], cwd=tmp, env=env, check=True, capture_output=True)
     return (tmp / "runs/last-night.txt").read_text()
 

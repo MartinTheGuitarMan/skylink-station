@@ -4,6 +4,8 @@
  <key>Label</key><string>se.skylink.nightly</string>
  <key>UserName</key><string>__USER__</string>
  <key>ProgramArguments</key><array><string>/bin/bash</string><string>__REPO__/scripts/nightly.sh</string></array>
+<!-- a job still running when the script ends (a leased VM) must not be killed with it -->
+ <key>AbandonProcessGroup</key><true/>
  <key>StartCalendarInterval</key><dict><key>Hour</key><integer>23</integer><key>Minute</key><integer>0</integer></dict>
  <key>EnvironmentVariables</key><dict>
   <key>HOME</key><string>/Users/__USER__</string>

@@ -145,7 +145,8 @@ make smoke     # 1 simulated hour, one stream, frequent outages (SPEED=60 by def
 make test      # unit tests, no docker needed (node is needed for the gate tests)
 make down      # stop; `make wipe` deletes the data volumes
 ```
-Grafana http://localhost:3000 (user `admin`, password in `.env`), dashboard "Skylink Station".
+Grafana http://localhost:3000 (user `admin`, password in `.env`), dashboard "Skylink Station". On the night host the Docker VM is off by day,
+so Grafana is only reachable at night or after `scripts/vm.sh up && scripts/vm.sh stack` (`docs/vm-on-demand.md`).
 Event time starts at 2026-01-01T00:00:00Z, so the dashboard time range is absolute. Pick `run`.
 Ports bind to 127.0.0.1; set `BIND=0.0.0.0` in `.env` to open them to the LAN.
 

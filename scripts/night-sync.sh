@@ -3,6 +3,7 @@
 # The night host's ssh name comes from NIGHT_HOST (environment, or a NIGHT_HOST= line in .env).
 #
 #   scripts/night-sync.sh status   night host HEAD, nightly daemon, running jobs, runs/last-night.txt, free disk
+#                                  (Influx and VM disk sizes live only while the VM is on; by day see last night's "vm disk at end" line)
 #   scripts/night-sync.sh pull     night results -> runs/night/ here (runs/ and untracked reports/), its main -> refs/remotes/night/main
 #   scripts/night-sync.sh answers  the daily pass's escalation answers (runs/escalation/outbox/*.jsonl) -> the night host's runs/escalation/answers/
 #   scripts/night-sync.sh push     fast-forward the night host's checkout to this main; refuses while a night job runs,
@@ -10,7 +11,7 @@
 set -eu
 cd "$(dirname "$0")/.."
 [ -n "${NIGHT_HOST:-}" ] || NIGHT_HOST=$(sed -n 's/^NIGHT_HOST=//p' .env 2>/dev/null | tail -1)
-HOST=${NIGHT_HOST:?set NIGHT_HOST (environment or .env) to the night host's ssh name}
+HOST=${NIGHT_HOST:?set NIGHT_HOST (environment or .env) to the ssh name of the night host}
 DIR=${NIGHT_DIR:-Code/skylink-station}   # relative to the night host user's home
 on_night() { ssh -o ConnectTimeout=10 "$HOST" "export PATH=/opt/homebrew/bin:\$PATH; cd $DIR && $1"; }
 
@@ -22,10 +23,15 @@ status)
            pgrep -fl "nightly.sh|agent_proposals.py|agent_eval.py|skylink-sim run" | cut -c1-120 || true
            echo "-- runs/last-night.txt"; cat runs/last-night.txt 2>/dev/null || echo "(none yet)"
            df -g . | awk "NR==2 {print \"free disk: \" \$4 \" GB\" (\$4 < 20 ? \"  WARNING: under 20 GB, tell the owner\" : \"\")}"
-           PATH=/opt/homebrew/bin:$PATH docker exec skylink-influxdb-1 du -sh /var/lib/influxdb2/engine/data 2>/dev/null \
-             | awk "{print \"influx data: \" \$1 \" (raw kept forever; owner said keep it, watch it)\"}" || true
-           PATH=/opt/homebrew/bin:$PATH docker exec skylink-influxdb-1 df -Pk /var/lib/influxdb2 2>/dev/null \
-             | awk "NR==2 {g=int(\$4/1048576); print \"VM disk (InfluxDB): \" g \" GB free of \" int(\$2/1048576) (g < 6 ? \"  WARNING: nightly runs stop under 6 GB\" : \"\")}" || true'
+           export PATH=/opt/homebrew/bin:$PATH
+           if colima status >/dev/null 2>&1; then
+             docker exec skylink-influxdb-1 du -sh /var/lib/influxdb2/engine/data 2>/dev/null \
+               | awk "{print \"influx data: \" \$1 \" (raw kept forever; owner said keep it, watch it)\"}" || true
+             docker exec skylink-influxdb-1 df -Pk /var/lib/influxdb2 2>/dev/null \
+               | awk "NR==2 {g=int(\$4/1048576); print \"VM disk (InfluxDB): \" g \" GB free of \" int(\$2/1048576) (g < 6 ? \"  WARNING: nightly runs stop under 6 GB\" : \"\")}" || true
+           else
+             echo "VM off (by design by day, docs/vm-on-demand.md): influx data and VM disk sizes are the \"vm disk at end\" line of last night, above"
+           fi'
   ;;
 pull)
   mkdir -p runs/night/reports

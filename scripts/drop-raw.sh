@@ -7,6 +7,14 @@ set -eu
 cd "$(dirname "$0")/.."
 set -a; . ./.env; set +a
 export PATH=/opt/homebrew/bin:$PATH
+# the VM is off by day (docs/vm-on-demand.md): start it and the stack for this job, and stop it again if it was off
+started_vm=0
+if [ "$(scripts/vm.sh state)" = off ]; then
+  scripts/vm.sh up && scripts/vm.sh stack || { echo "could not start the Docker VM" >&2; scripts/vm.sh down; exit 1; }
+  started_vm=1
+fi
+scripts/vm.sh lease $$
+trap 'scripts/vm.sh unlease $$; [ $started_vm = 1 ] && scripts/vm.sh down' EXIT
 [ $# -gt 0 ] || { echo "usage: $0 <run-id>..." >&2; exit 2; }
 for run in "$@"; do
   case "$run" in locked*) echo "refusing locked run $run" >&2; exit 1;; esac

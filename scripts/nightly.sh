@@ -9,6 +9,9 @@
 # Night fallback: when the queues above gave nothing to do (no new work since the last pass), it runs
 # config/default-queue.txt (dev seeds only), runs whatever code the night host has, and appends the commit it ran
 # to runs/night-log.tsv (docs/night-fallback.md). The daily pass reads that log with scripts/missed_passes.py.
+# The Docker VM is off by day (docs/vm-on-demand.md): this script starts it (scripts/vm.sh up/stack, bounded waits) and stops it
+# on exit, whatever the exit, unless a lease or a job it started still needs it. VM_STOP_AFTER_NIGHT=0 in .env keeps the old
+# always-on behaviour (the VM is then also left running).
 set -u
 cd "$(dirname "$0")/.."
 set -a; . ./.env; set +a
@@ -21,6 +24,8 @@ ran=0
 ran_main=0   # set when a queued simulation, collect, agent eval or bench ran (the escalation inbox does not count)
 mode=idle
 started=0
+vm_touched=0
+VM_STOP_AFTER_NIGHT="${VM_STOP_AFTER_NIGHT:-1}"
 
 free_gb() { df -g . | awk 'NR==2 {print $4}'; }
 vm_free_gb() { docker exec skylink-influxdb-1 df -Pk /var/lib/influxdb2 2>/dev/null | awk 'NR==2 {print int($4/1048576)}'; }
@@ -45,12 +50,30 @@ fingerprint() { cat config/queue.txt config/agent-queue.txt config/proposal-queu
 commit=$(git rev-parse --short HEAD 2>/dev/null || echo unknown); git diff --quiet HEAD 2>/dev/null || commit="$commit+dirty"
 night=$(TZ=Europe/Stockholm date +%F); fp=$(fingerprint); prev_fp=$(tail -1 runs/night-log.tsv 2>/dev/null | cut -f6)
 queue_changed=yes; [ "$fp" = "$prev_fp" ] && queue_changed=no
-trap 'note "end $(TZ=Europe/Stockholm date +%H:%M), $(free_gb) GB free"; [ $ran = 0 ] && note "nothing ran"
-      [ $started = 1 ] && printf "%s\t%s\t%s\t%s\t%s\t%s\n" "$night" "$commit" "$queue_changed" "$mode" "" "$fp" >> runs/night-log.tsv' EXIT
+# the sizes the daytime disk watch needs; read at night's end because the VM is off by day (night-sync.sh status shows this line)
+vm_sizes_note() {
+  local data vm
+  data=$(docker exec skylink-influxdb-1 du -sh /var/lib/influxdb2/engine/data 2>/dev/null | awk '{print $1}')
+  vm=$(docker exec skylink-influxdb-1 df -Pk /var/lib/influxdb2 2>/dev/null | awk 'NR==2 {print int($4/1048576) " GB free of " int($2/1048576)}')
+  [ -n "$data$vm" ] && note "vm disk at end: influx data ${data:-?}; VM disk ${vm:-?}"
+}
+vm_finish() {  # stop the VM after anything this script did to it; never under a running job (vm.sh checks)
+  [ "$vm_touched" = 1 ] && [ "$VM_STOP_AFTER_NIGHT" = 1 ] || return 0
+  vm_sizes_note
+  note "vm: $(scripts/vm.sh down 2>&1 | tail -1 | sed 's/^vm: //')"
+}
+on_exit() {
+  trap - EXIT
+  vm_finish
+  note "end $(TZ=Europe/Stockholm date +%H:%M), $(free_gb) GB free"; [ $ran = 0 ] && note "nothing ran"
+  [ $started = 1 ] && printf "%s\t%s\t%s\t%s\t%s\t%s\n" "$night" "$commit" "$queue_changed" "$mode" "" "$fp" >> runs/night-log.tsv
+}
+trap on_exit EXIT   # also runs when bash is ended by TERM/INT/HUP; a sim still running then keeps the VM up (vm.sh down checks)
+
 why=$(stop_reason); [ -n "$why" ] && { note "not started: $why"; echo "$why" >&2; exit 0; }
-colima status >/dev/null 2>&1 || colima start --cpu 4 --memory 6 --disk 100 --vm-type vz >/dev/null 2>&1
-started=1; note "code: $commit"
-docker compose up -d >/dev/null 2>&1 || { note "failed: docker stack not available"; echo "docker stack not available" >&2; exit 1; }
+vm_touched=1; started=1; note "code: $commit"   # started=1 before the VM comes up: a failed cold start is a logged night, not a missing one
+scripts/vm.sh up 2>> "$SUMMARY" || { note "failed: docker VM did not start (cold start, see runs/colima.log)"; echo "docker VM did not start" >&2; exit 1; }
+scripts/vm.sh stack 2>> "$SUMMARY" || { note "failed: docker stack not available (InfluxDB not healthy)"; echo "docker stack not available" >&2; exit 1; }
 
 # ---- escalation inbox (C5e inbox run, docs/escalation.md): seconds of work, before anything long --------
 # Applies answers sent back by the daily pass, scores applied nights, asks the next night in config/escalation-queue.txt.

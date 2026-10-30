@@ -7,8 +7,9 @@ morning), after the night on the night host. Do one pass, report, stop. The rule
 1. **Look.** `git status -sb`, `git log --oneline -5`, then `scripts/night-sync.sh status` and `scripts/night-sync.sh pull`.
    Read `runs/night/last-night.txt` and whatever is new under `runs/night/` (`agent/proposals-*.txt`, `*/summary.json`,
    `reports/`). If the night host has commits missing here, merge `night/main` first.
-   **Disk watch** (owner, 2026-10-24: keep the Influx raw data, but watch it): `status` prints the night host's free disk and the Influx
-   data size. Put both in the report's first line. Under 20 GB free, say so under `Behöver dig:`; the fix on the table is to drop a
+   **Disk watch** (owner, 2026-10-24: keep the Influx raw data, but watch it): `status` prints the night host's free disk; the Influx
+   data size and VM disk come from the `vm disk at end` line of `last-night.txt`, because the Docker VM is off by day (`docs/vm-on-demand.md`;
+   `status` says `VM off`). Grafana and InfluxDB are not reachable by day either. Put both in the report's first line. Under 20 GB free, say so under `Behöver dig:`; the fix on the table is to drop a
    run's raw data after its C8 check (backlog), which is the owner's call. Never delete data on the night host to make room.
 1b. **Missed passes.** `uv run python scripts/missed_passes.py --main-commits` (reads `runs/night/night-log.tsv`, see
    `docs/night-fallback.md`). If it lists nights, put its line in this pass's journal entry as is, note which code the night host
