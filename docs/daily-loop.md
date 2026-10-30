@@ -60,7 +60,8 @@ morning), after the night on the night host. Do one pass, report, stop. The rule
    ran 2026-10-25/26 as `dev-c2-1x`; its collect is in `config/verdict-queue.txt`, which `nightly.sh` works through after the
    simulations since 2026-10-29), and
    (b) a **C7 replicate**: run one locked seed twice (both logged) and pass `--replicate`.
-5. **Locked runs.** Seeds 101-105, 7 days, all five streams, `config/scenario-default.toml` (one 7-day run a night: five seeds plus the C7 replicate is about six nights; queue each
+   Both ready 2026-10-30 (`reports/verdict-dev-r.md`): C2 holds on dev-c2-1x; C7 and C8 work on a dev replicate pair.
+5. **Locked runs** (started 2026-10-30: `locked-101` queued; next 102, 103, 104, 105, then `locked-101b` as the C7 replicate). Seeds 101-105, 7 days, all five streams, `config/scenario-default.toml` (one 7-day run a night: five seeds plus the C7 replicate is about six nights; queue each
    run's collect under label `locked` in `config/verdict-queue.txt`), then C5a/C5b on
    locked cases. Default unless the owner says otherwise: job R (C5d) and escalation (C5e) are scored on the locked runs too,
    as reported claims outside the verdict rule. Log every locked run in the journal. Write `reports/verdict.md` with the final form of the recipe.

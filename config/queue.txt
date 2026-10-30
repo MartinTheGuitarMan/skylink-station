@@ -1,4 +1,5 @@
-# <run-id> <scenario> <seed> <days> <speed> — dev seeds only until the final report
+# <run-id> <scenario> <seed> <days> <speed> — dev seeds, plus locked seeds 101-105 only as road step 5 says
+# (one locked 7-day run a night, so none is cut and resumed; every locked run is logged in JOURNAL.md)
 dev-s1 config/scenario-default.toml 1 7 60
 dev-s2 config/scenario-default.toml 2 7 60
 dev-s3 config/scenario-default.toml 3 7 60
@@ -7,3 +8,4 @@ dev-s2-drift config/scenario-default.toml 2 7 60
 dev-c2-1x config/scenario-default.toml 3 0.0833 1
 dev-s2-r config/scenario-default.toml 2 7 60
 dev-s1-r config/scenario-default.toml 1 7 60
+locked-101 config/scenario-default.toml 101 7 60

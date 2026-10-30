@@ -4,14 +4,14 @@ Triaged with the owner on 2026-10-25: open ideas cut from about 20 to 7. An idea
 written off with a reason (stop rule, `docs/success-criteria.md`). New ideas go into **Open**, ranked.
 
 ## Open
-1. **Locked-seed verdict runs** (seeds 101-105, 7 days, all streams; road step 5), after their two inputs: the C2 run at 1x
-   (`dev-c2-1x` ran 2026-10-25/26; collect queued 2026-10-29) and the C7 replicate (one locked seed twice, both logged).
-   One 7-day run fits a night (3 h 40 min), so about six nights.
+1. **Locked-seed verdict runs** (seeds 101-105, 7 days, all streams; road step 5). Inputs ready 2026-10-30: C2 measured on
+   `dev-c2-1x` (holds), C7 and C8 shown working on dev (`reports/verdict-dev-r.md`). `locked-101` queued 2026-10-30; then 102-105
+   and the C7 replicate `locked-101b`, one a night (3 h 40 min each), so about six nights.
 2. **Job R, retrospective review (C5d)**: rules arm done on dev seed 3 (iteration 13, R1 0.943). Pilot on 8 windows done for
    Qwen3-14B and gemma-4-e4b, R2-R4 (iterations 16, 19). Left: 40 windows with two model sizes; then ask the owner whether job R joins
    the locked runs.
-3. **Escalation inbox** (C5e inbox run): e11-e14 were asked 2026-10-25 to 10-28 but answered only on 2026-10-29 (no pass
-   ran 10-26 to 10-28); read the pooled result after 5 answered nights and write it up.
+3. **Escalation inbox** (C5e inbox run): e11-e14 applied 2026-10-29/30, e15 answered 2026-10-30; read the pooled result once
+   5 nights are applied (e15 applies tonight) and write it up.
 4. **Knowledge or model?** Give Qwen3-14B and gemma-4-e4b the station physics text Claude had (`docs/slm-backend.md`) on the 200
    escalation edge cases; if most of the gap to Claude (0.935 vs 0.76) closes, the edge needs to escalate far less. Pre-register
    first. One short day-host run on stored cases.
