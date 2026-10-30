@@ -675,3 +675,38 @@ Road 1c (job R, 40 windows) skipped: the day host is on battery.
 
 Night 2026-10-25/26: no finding (runs done, nothing scored yet). Nights 2026-10-26/27 to 2026-10-28/29: nothing ran (no pass, empty queue).
 Open ideas: 6 (BACKLOG.md, Open).
+
+## Night 2026-10-29/30, and the pass of 2026-10-30
+
+**Look.** Night host on f8676bf (this repo's HEAD), no missed passes. The uncommitted one-line wording change in
+`scripts/night-sync.sh` (not made by a pass) is still left as it was. **Disk:** night host 106 GB free at 23:00, 17 GB at 02:53,
+24 GB now; Influx data 49 GB (+9), VM disk 40 GB free of 98. The run outputs in the checkout are 106 MB, so about 70-80 GB went
+somewhere outside this repo during the night; not looked into (outside the checkout), reported to the owner.
+
+**`dev-s1-r`** (seed 1, 7 d, 60x, 23:00 to about 02:40). Why: replicate of dev-s1-drift on the new code (C7 dry run) and a second
+good run for the verdict dry run. Result: finished, chain hash 91d31f49... equal to dev-s1-drift's, 301 558 posts. Read honestly: the
+simulator replays a seed exactly on two seeds now, across 11 days of code changes.
+
+**`verdict collect dev-r`, then `decide` on the day host** (dev-s2-r, dev-s1-r; C2 from dev-c2-1x; `reports/verdict-dev-r.md`).
+Result: **C8 ok on both runs** (no raw hole after the VM disk fix). **C2 measured for the first time and holds**: mean 0.024 core,
+max RSS 257 MB, p99 step 21.8 ms (budget 0.5 core, 512 MB, 50 ms), compression >= 60x. C1 holds (temp, vibration, wind), C3 fails
+(pressure front and step, solar, vibration link-ups), C4 fails, C6 soft target met, C5 not run. **C7 dry run** (scratch copy only,
+not kept): dev-s1-drift vs dev-s1-r as a replicate pair, hash equal, max per-model MAE change 0.00 %, so the `--replicate` path works
+end to end. Read honestly: two dev seeds; the footprint is the River service only at 1x (model servers excluded by C2's definition),
+about a twentieth of the budget. This is a dev reading, not the verdict.
+**Decision.** Road step 4 done: both inputs the dry run found missing now exist. Road step 5 starts tonight.
+
+**Escalation inbox.** e11-e14 applied at night (150 answers, 0 rejected). e15 answered blind with the same signatures as e11-e14
+(vibration excursions of 1-2 s are drive kicks; one huge 1 s value is a spike; wind holding >= 3 s or rising is a gust; a strong
+wind jump of 1-2 s with no build-up is a spike): 40 answers, 35 real_event, 5 sensor_fault, 2 kept as examples; `check` passes;
+34 of 40 agree with the edge (I differ on six wind alerts the edge calls faults that hold 3-5 s or build up). Truth for e15 not
+looked at. Honest note: the pooled line of e11-e14 in `summary.md` was seen before e15 was answered (it is printed with the
+per-night table); it is not read as a result until 5 nights, and the e15 answers follow the earlier rules unchanged.
+
+**Locked run 1 of 6 queued: `locked-101`** (seed 101, 7 d, 60x, `config/scenario-default.toml`, about 3 h 40 min), then
+`verdict collect locked` (C2 from dev-c2-1x, the designated 1x run). One locked run a night, so none is cut and resumed across a day.
+Disk: a 7-day run adds about 10 GB of Influx data; 24 GB free covers it, and C8 voids the run if the disk fills anyway.
+Not done: road 1c (job R, 40 windows); the day host is on power, but this pass kept to one change (starting road step 5). Next pass.
+
+Night 2026-10-29/30: finding (C2 measured and holds; recipe section 7 gets a measured night-host footprint; C7 and C8 shown working on dev).
+Open ideas: 6 (BACKLOG.md, Open).
