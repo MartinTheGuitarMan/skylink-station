@@ -44,6 +44,10 @@ Model choice for these jobs (general comparison of fifteen local model runs on t
 Action space fixed in advance; one change per 30 min; reject proposals worse than the incumbent by 50 %; automatic rollback when the next 10 minutes are 20 % worse; log every call with input, output, latency, verdict. Count invalid outputs as failures.
 
 ## 7. Footprint to budget for `dev` (day host VM and night host)
+Measured at real time (1x) on the night host, all five streams (C2, `dev`, `reports/verdict-dev-r.md`): the River service uses a mean
+0.024 core, at most 257 MB RSS and 21.8 ms p99 per step, against a budget of 0.5 core, 512 MB and 50 ms
+(about a twentieth of the CPU budget). The forecasting side is cheap; budget for the model servers. A seed replays exactly (same stream hash on two seeds, 11 days
+of code apart, per-model MAE unchanged), so a dev result can be re-run to check it.
 River service for five streams, ten models, base arms at 60x: roughly 0.3-0.45 of a core, about 130 MB. Local model servers dominate memory: a 4B model needs about 3-7 GB, Jev 0.8B about 5 GB resident (MLX), a 20B model 12 GB. On a 16 GB machine that already holds a 6 GB Docker VM, run one model at a time and never while the machine is needed for other work.
 
 ## Open questions this recipe still needs answered
