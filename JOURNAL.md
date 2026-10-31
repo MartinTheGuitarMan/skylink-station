@@ -793,3 +793,24 @@ The direction of the 8-window pilot holds on 40 windows. Qwen3-14B on 40 windows
 If the night host's mcp-minions has the same check, every job P proposal fails and reads as "no lift". Nothing queued uses it, and it cannot be
 tried live today. Road step 5 now says to check it on a dev seed before the locked C5a/C5b.
 Open ideas: 6 (BACKLOG.md, Open).
+
+## Iteration 22 (2026-10-31): cold storage for raw data (branch claude/cold-export)
+
+**Why.** The disk filled on 2026-10-30 and `locked-101` stopped. The owner decided on 2026-10-31 to keep raw data on cold storage and
+not delete it. That replaces his 2026-10-24 line "keep the Influx raw data, but watch it".
+**Rule.** `docs/daily-loop.md` ("Raw data retention") and `CLAUDE.md`: retention goes by run. Scored, C8 passed, exported and verified,
+then drop. Dev: export then drop. Locked: stay until the locked verdict is written, then export plus a second copy. Void or partial:
+the owner decides. Summaries, configs, truth events, reports and the journal are kept forever; forecasts until the final report.
+**Code.** `src/skylink/coldexport.py` and `scripts/cold-export.sh <run> [--allow-locked]`; `--verify <run>` checks an export offline.
+Per stream one zstd Parquet file (pyarrow, new dependency), `manifest.json` with per-stream counts, `SHA256SUMS`. The query runs in
+one-hour windows and each window is one Parquet row group, so memory does not grow with the run. The export is built in a hidden
+`.partial-*` directory, re-read, compared with `summary.json` (`emitted` minus `overflow_dropped`, the C8 form) and checksummed, then
+renamed; the rename is the only step that makes it look finished. Refuses: Cold not mounted, run not finished, `locked*` without the
+flag, existing export. Same VM lease pattern as `drop-raw.sh`. `drop-raw.sh` now verifies each run's export offline first and refuses
+before it touches the VM; its two scripts append (not prepend) `/opt/homebrew/bin` to PATH so test stubs win.
+**Tests.** 15 new, 134 in all pass: fake query source, interrupted export, count mismatch, missing volume, corruption, summary drift,
+`drop-raw.sh` refusal and success paths with stubbed docker and vm.sh.
+**Not tested live.** Flux queries and CSV parsing of `InfluxSource` against a real InfluxDB (the VM is down), real USB volume and mount
+check, export wall time and file size on a real run (no estimate made), `cold-export.sh` end to end with the VM lease. A first real
+export of a small dev run should be the first live test, with `--verify` after. Nothing was run on the night host, nothing deleted.
+Open ideas: 6 (BACKLOG.md, Open).

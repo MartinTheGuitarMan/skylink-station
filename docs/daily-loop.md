@@ -7,10 +7,10 @@ morning), after the night on the night host. Do one pass, report, stop. The rule
 1. **Look.** `git status -sb`, `git log --oneline -5`, then `scripts/night-sync.sh status` and `scripts/night-sync.sh pull`.
    Read `runs/night/last-night.txt` and whatever is new under `runs/night/` (`agent/proposals-*.txt`, `*/summary.json`,
    `reports/`). If the night host has commits missing here, merge `night/main` first.
-   **Disk watch** (owner, 2026-10-24: keep the Influx raw data, but watch it): `status` prints the night host's free disk; the Influx
+   **Disk watch** (retention is by run, see "Raw data retention" below; this replaces the owner's 2026-10-24 line "keep the Influx raw data, but watch it"): `status` prints the night host's free disk; the Influx
    data size and VM disk come from the `vm disk at end` line of `last-night.txt`, because the Docker VM is off by day (`docs/vm-on-demand.md`;
-   `status` says `VM off`). Grafana and InfluxDB are not reachable by day either. Put both in the report's first line. Under 20 GB free, say so under `Behöver dig:`; the fix on the table is to drop a
-   run's raw data after its C8 check (backlog), which is the owner's call. Never delete data on the night host to make room.
+   `status` says `VM off`). Grafana and InfluxDB are not reachable by day either. Put both in the report's first line. Under 20 GB free, say so under `Behöver dig:`; the fix on the table is to export finished runs to cold storage and drop their raw points
+   once the export is verified (`scripts/cold-export.sh`, then `scripts/drop-raw.sh`), which is the owner's call. Never delete data on the night host to make room.
    A simulation does not start under 100 GB free or when the VM disk does not answer (`MIN_SIM_FREE_GB`, `nightly.sh`), and stops itself under 10 GB (`MIN_RUN_FREE_GB`).
    `VM NOT ANSWERING` from `status` is an incident: read-only checks only, then `Behöver dig:`.
 1b. **Missed passes.** `uv run python scripts/missed_passes.py --main-commits` (reads `runs/night/night-log.tsv`, see
@@ -70,6 +70,20 @@ morning), after the night on the night host. Do one pass, report, stop. The rule
    as reported claims outside the verdict rule. Log every locked run in the journal. Write `reports/verdict.md` with the final form of the recipe.
 6. **Stop rule (stable state).** After the verdict, count passes: the experiment is stable when three consecutive passes give `no finding` **and** no idea is left open (owner, 2026-10-24: "no new findings and ideas"). Every pass ends its journal entry with `Open ideas: N` from `BACKLOG.md`; an idea leaves the list only when tested or written off with a reason. A new idea resets the count. Then write the final
    report and start the report with `STOPP NÅTT`, asking the owner to turn off the scheduled task and the night host's nightly daemon.
+
+## Raw data retention (owner, 2026-10-31)
+Raw sensor points leave InfluxDB by run, not by age. A finished run is scored, passes its C8 data check, is exported to cold
+storage (`scripts/cold-export.sh <run>`: zstd Parquet, manifest with per-stream counts, SHA-256, verified against `summary.json`)
+and only then may its raw points be dropped (`scripts/drop-raw.sh` refuses a run with no verified export).
+- **Dev runs:** export, then drop.
+- **Locked runs:** raw stays in InfluxDB until the locked verdict is written, then is exported (`--allow-locked`) and needs a second
+  copy on other storage before anything is dropped. `drop-raw.sh` still refuses locked runs; the owner decides that drop.
+- **Void or partial runs:** the owner decides per run.
+- **Kept forever:** summaries, configs, truth events, reports and the journal.
+- **Forecasts** stay until the final report, then are archived.
+The simulator recreates any run's raw data from its seed (C7), which is why a dev export is a convenience, not the only copy.
+Cold storage is an APFS volume on an external drive on the night host (`/Volumes/Cold`, or `COLD_ROOT`); nothing is exported when it
+is not mounted. The export streams in one-hour windows and writes in a hidden directory that is renamed only after the check.
 
 ## Ask the owner first (in the report, never by waiting mid-pass)
 Model downloads or anything else that uses disk on the night host beyond run outputs; deleting data on the night host; anything outside this

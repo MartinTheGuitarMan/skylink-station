@@ -26,7 +26,7 @@ status)
            export PATH=/opt/homebrew/bin:$PATH
            if colima status >/dev/null 2>&1; then
              docker exec skylink-influxdb-1 du -sh /var/lib/influxdb2/engine/data 2>/dev/null \
-               | awk "{print \"influx data: \" \$1 \" (raw kept forever; owner said keep it, watch it)\"}" || true
+               | awk "{print \"influx data: \" \$1 \" (raw leaves by run, after a verified cold export; docs/daily-loop.md)\"}" || true
              docker exec skylink-influxdb-1 df -Pk /var/lib/influxdb2 2>/dev/null \
                | awk "NR==2 {g=int(\$4/1048576); print \"VM disk (InfluxDB): \" g \" GB free of \" int(\$2/1048576) (g < 6 ? \"  WARNING: nightly runs stop under 6 GB\" : \"\")}" || true
            elif pgrep -f "limactl hostagent" >/dev/null; then
