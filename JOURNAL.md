@@ -726,5 +726,52 @@ status` says `VM off`; `drop-raw.sh` starts the VM itself. Also fixed an apostro
 the new daemon set are not verified. Results: no change to any threshold, metric, queue or locked seed; River and Node-RED state is
 rebuilt on `/config` at every run start and resume, so a cold container equals the reset that already happens. Timing: 1-3 minutes of the
 23:00 window go to the start; first minutes run with cold caches (see `docs/vm-on-demand.md`).
-**Decision.** Branch waits for the owner: merge, `night-sync.sh push`, then the admin step in `ops/README.md`. The coding bench in
+**Decision.** Branch waits for the owner: merge, `night-sync.sh push`, then the admin step in `ops/README.md`. (Merged to main 2026-10-30; pushed by the pass of 2026-10-31.) The coding bench in
 `mcp-minions` must start and lease the VM itself (`docs/vm-on-demand.md`).
+
+## Night 2026-10-30/31: `locked-101` stopped by a full host disk, the Docker VM's disk broke (pass of 2026-10-31)
+
+**What happened.** The night started at 23:00 with 36 GB free on the night host, on code 66d0b9c. Escalation e15 was applied and e16 asked.
+`locked-101` (locked seed 101, run 1 of 6, logged here as a locked-seed run) started and at 23:37 crashed writing its checkpoint:
+`OSError: [Errno 28] No space left on device`. `last-night.txt`: `sim locked-101: stopped`, `stop: disk low (0 GB free, need 3)`,
+`end 23:37, 0 GB free`. The checkpoint on disk is intact JSON at block 1774 of 10080 (17.6 % of the run). No result of this run was read.
+**The VM did not survive it.** At 06:28 `docker exec` into InfluxDB and `colima ssh` both fail with `input/output error`, `colima status`
+fails, InfluxDB and Node-RED report `unhealthy`, and the VM's data disk file has not been written since 23:37. The VM process still runs,
+which is why `status` said `VM off`: that message was wrong (fixed, below). InfluxDB's data, including every earlier run, could not be
+checked. Nothing was restarted: `CLAUDE.md`, the task rules and the owner's "keep the raw data" leave that to the owner.
+**Where the space went (read-only, not proved).** The host used 424 GB of 460 while files add up to about 230 GB (VM disks 90 GB). The VM
+disk files and `.ollama` are included in Time Machine, and 18 hourly local snapshots exist. Leading explanation: the snapshots keep every
+block of the VM's disk file that gets rewritten, so a run costs far more on the host than its 10 GB of database. It fits the 70-80 GB
+"somewhere outside this repo" of 2026-10-29/30 (106 to 17 GB). Free space came back to 9 GB by 06:27 without any action here. A local
+snapshot covers the whole volume, so excluding the VM disk from backups alone may not fix it.
+**Why the guards missed it.** (1) `MIN_FREE_GB` is checked between runs, never inside one. (2) A 24 GB margin was assumed last pass from the
+10 GB of Influx growth, although the same entry recorded the 89 GB fall: that was my error, and it put a locked run at risk.
+(3) `vm_reason` treated an unreadable VM disk as fine, so tonight's old code would have resumed `locked-101` against the broken stack.
+**Read honestly.** C8 will very likely void this partial run: points after the VM lost its disk, or still in the Node-RED buffer, are gone.
+It cannot be checked until the VM answers. The seed itself is not spent, because no outcome was seen; whether `locked-101` restarts
+clean is the owner's call, since it touches a locked seed and a restart needs its partial raw data handled.
+
+**Fix in the repo (no threshold, metric or locked seed touched).** `nightly.sh`: a simulation does not start under `MIN_SIM_FREE_GB`
+(100, from the 89 GB night) or when the VM disk does not answer. `skylink-sim run --min-free-gb` (nightly passes `MIN_RUN_FREE_GB`, 10)
+stops at a block boundary; a test shows stop and resume give the chain hash of an unbroken run. `night-sync.sh status` now prints
+`VM NOT ANSWERING` in this state. `locked-101` is commented out of `config/queue.txt`. 119 tests pass.
+**The push.** This also brings c161139 (VM on only at night), merged by the owner, to the night host for the first time. With the VM as it
+is, tonight's `vm.sh stack` should fail on the unhealthy InfluxDB and end as a `failed:` night; `se.skylink.colima` still runs until the
+owner's admin step. Stub-tested only, as before.
+
+**Tonight.** Nothing that writes. With the VM broken and 9 GB free every simulation is refused, including the fallback's `dev-s3-r`. The
+queue has no other job that fits a broken stack. e16's answers wait on the night host.
+
+**Escalation inbox.** e15: 34 of 40 agreed with the edge before, now scored (`summary.md`): answer accuracy 0.9, final F1 0.935.
+e16 answered blind from the facts, with the same signatures as e14-e15 written down as a short script and then read through: 40 answers,
+34 real_event, 6 sensor_fault, 2 kept as examples, `check` passes, 38 of 40 agree with the edge. Truth not looked at.
+**C5e, pooled read after 5 nights** (`reports/escalation-inbox-2026-10-31.md`): edge F1 0.866, final 0.898, gain +0.032 [0.019, 0.047],
+19 fixed, 0 broken, 190 answers at 0.768 against 0.668 for the edge on the same alerts. Meets the rule (>= +0.02, CI excluding 0): residue
+escalation pays on dev. The CI's lower end is just under +0.02; H12 guessed +0.01 to +0.03.
+
+**Minions.** `summarize_file` on `nightly.log` got the error right and the story wrong (it called this a final checkpoint after finished
+calculations; the run was 17.6 % in): not used, every number here comes from the logs and scripts.
+No missed passes. Disk: night host 9 GB free; Influx data and VM disk unknown (no `vm disk at end` line, old code, VM not answering).
+
+Night 2026-10-30/31: finding (C5e residue escalation pays on dev; a run can cost the host far more disk than its database grows). Incident: disk full, `locked-101` stopped.
+Open ideas: 6 (BACKLOG.md, Open).

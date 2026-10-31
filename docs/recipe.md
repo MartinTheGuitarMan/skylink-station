@@ -48,6 +48,7 @@ Measured at real time (1x) on the night host, all five streams (C2, `dev`, `repo
 0.024 core, at most 257 MB RSS and 21.8 ms p99 per step, against a budget of 0.5 core, 512 MB and 50 ms
 (about a twentieth of the CPU budget). The forecasting side is cheap; budget for the model servers. A seed replays exactly (same stream hash on two seeds, 11 days
 of code apart, per-model MAE unchanged), so a dev result can be re-run to check it.
+Budget the host's disk, not only the VM's (`dev`, one host): a 7-day run adds about 10 GB of database, yet the host's free space fell 89 GB during one such run and ran out 37 min into another, and a VM whose disk file cannot grow loses its disk with the database on it. On a machine with hourly backups, measure the host's free space across a run before trusting it; refuse a run that lacks room for its worst measured night. The cause is not proved yet; backup snapshots holding the VM disk's rewritten blocks are the leading explanation.
 River service for five streams, ten models, base arms at 60x: roughly 0.3-0.45 of a core, about 130 MB. Local model servers dominate memory: a 4B model needs about 3-7 GB, Jev 0.8B about 5 GB resident (MLX), a 20B model 12 GB. On a 16 GB machine that already holds a 6 GB Docker VM, run one model at a time and never while the machine is needed for other work.
 
 ## Open questions this recipe still needs answered

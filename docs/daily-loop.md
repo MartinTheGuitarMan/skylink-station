@@ -11,6 +11,8 @@ morning), after the night on the night host. Do one pass, report, stop. The rule
    data size and VM disk come from the `vm disk at end` line of `last-night.txt`, because the Docker VM is off by day (`docs/vm-on-demand.md`;
    `status` says `VM off`). Grafana and InfluxDB are not reachable by day either. Put both in the report's first line. Under 20 GB free, say so under `Behöver dig:`; the fix on the table is to drop a
    run's raw data after its C8 check (backlog), which is the owner's call. Never delete data on the night host to make room.
+   A simulation does not start under 100 GB free or when the VM disk does not answer (`MIN_SIM_FREE_GB`, `nightly.sh`), and stops itself under 10 GB (`MIN_RUN_FREE_GB`).
+   `VM NOT ANSWERING` from `status` is an incident: read-only checks only, then `Behöver dig:`.
 1b. **Missed passes.** `uv run python scripts/missed_passes.py --main-commits` (reads `runs/night/night-log.tsv`, see
    `docs/night-fallback.md`). If it lists nights, put its line in this pass's journal entry as is, note which code the night host
    ran, and go on with the pass: do not redo the missed days, and do not count a fallback run as a finding.
@@ -44,8 +46,8 @@ morning), after the night on the night host. Do one pass, report, stop. The rule
 ## Road to the verdict (keep this list current; it is the plan the pass follows)
 1. ~~**Job P on dev seed 3**~~ Done on the night 2026-10-24/25; dev reading of C5b on seeds 1-3 in the journal (lift not shown).
    A larger model (Qwen3-14B, about 8 GB) for job P would need disk on the night host: ask, do not download.
-1b. **Escalation inbox** (C5e inbox run, runs by itself each night): answer it in step 2b every pass; read the pooled result after
-   5 answered nights and write it up (`reports/`, recipe section 5).
+1b. ~~**Escalation inbox, pooled read**~~ Done 2026-10-31 on 5 nights (`reports/escalation-inbox-2026-10-31.md`): residue escalation pays on dev.
+   The inbox keeps running: answer it in step 2b every pass.
 1c. **Job R model arms** (C5d): on the day host, on power, at most 30 min a pass, `nice`d, one model loaded at a time (16k context):
    Qwen3-14B and gemma-4-e4b, R2-R4 (pilot on 8 windows done, iterations 16 and 19), then the full 40 windows in chunks
    (`review_eval.py run --until`). Battery: skip, say so.
@@ -62,7 +64,7 @@ morning), after the night on the night host. Do one pass, report, stop. The rule
    simulations since 2026-10-29), and
    (b) a **C7 replicate**: run one locked seed twice (both logged) and pass `--replicate`.
    Both ready 2026-10-30 (`reports/verdict-dev-r.md`): C2 holds on dev-c2-1x; C7 and C8 work on a dev replicate pair.
-5. **Locked runs** (started 2026-10-30: `locked-101` queued; next 102, 103, 104, 105, then `locked-101b` as the C7 replicate). Seeds 101-105, 7 days, all five streams, `config/scenario-default.toml` (one 7-day run a night: five seeds plus the C7 replicate is about six nights; queue each
+5. **Locked runs** (started 2026-10-30; **paused 2026-10-31**: `locked-101` was stopped at block 1774 of 10080 by a full host disk and the Docker VM's disk broke, journal 2026-10-31; before any locked run: VM answering, at least 100 GB free on the host, and the owner's call on the partial `locked-101`; next 102, 103, 104, 105, then `locked-101b` as the C7 replicate). Seeds 101-105, 7 days, all five streams, `config/scenario-default.toml` (one 7-day run a night: five seeds plus the C7 replicate is about six nights; queue each
    run's collect under label `locked` in `config/verdict-queue.txt`), then C5a/C5b on
    locked cases. Default unless the owner says otherwise: job R (C5d) and escalation (C5e) are scored on the locked runs too,
    as reported claims outside the verdict rule. Log every locked run in the journal. Write `reports/verdict.md` with the final form of the recipe.
