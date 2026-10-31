@@ -18,7 +18,7 @@ run=$1; shift
 # cheap refusals first, before the VM is started (the Python module repeats them)
 COLD="${COLD_ROOT:-/Volumes/Cold}"
 case "$run" in locked*) case " $* " in *" --allow-locked "*) ;; *) echo "cold-export: refusing locked run $run without --allow-locked" >&2; exit 1;; esac;; esac
-mount | grep -q " on $COLD " || { echo "cold-export: cold volume not mounted at $COLD" >&2; exit 1; }
+/sbin/mount | grep -q " on $COLD " || { echo "cold-export: cold volume not mounted at $COLD" >&2; exit 1; }
 [ -f "runs/$run/summary.json" ] || { echo "cold-export: no runs/$run/summary.json" >&2; exit 1; }
 set -a; . ./.env; set +a      # INFLUX_URL/ORG/TOKEN; values are never printed
 started_vm=0
