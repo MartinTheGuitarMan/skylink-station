@@ -775,3 +775,18 @@ No missed passes. Disk: night host 9 GB free; Influx data and VM disk unknown (n
 
 Night 2026-10-30/31: finding (C5e residue escalation pays on dev; a run can cost the host far more disk than its database grows). Incident: disk full, `locked-101` stopped.
 Open ideas: 6 (BACKLOG.md, Open).
+
+## Iteration 21 (2026-10-31): job R on 40 windows, gemma-4-e4b (road 1c, C5d)
+
+**Run.** Day host on power, LM Studio, 16k context, about 30 min in all, R2-R4 on the 40 windows of seed 3 (326 alerts, 97 artefacts).
+**First run, void for R3 and R4.** Every window came back invalid, F1 0.0: `MINION_NOT_IN_SOURCE` on the required `summary`. `extract` in
+mcp-minions now refuses a required value that is not in the source, and a summary is free text. The tool, not the model. Fixed here:
+`summary` and an override's `reason` are no longer required in `review.report_schema`; `summary_check` still judges the summary. R2 uses
+`classify` and stood. R3 and R4 were rerun (`r-full-g4e-b`, 0 invalid). The first run is kept in `runs/`, not in the report.
+**Result** (`reports/review-g4e-40-2026-10-31.md`). R1 0.943 [0.902, 0.973], R0 0.677. gemma-4-e4b: R2 0.781 (-0.162 [-0.230, -0.102]), R3
+0.197 (-0.746 [-0.818, -0.664]), R4 0.943 (+0.000), 0 overrides, fault-stream precision 0.509 against R1's 0.861, summaries valid 0.975.
+**Read honestly.** One model, one seed, one run each, and the schema changed between pilot and this run, so a summary may now be left out
+(none was missing enough to matter: 0 invalid). R4 equals R1 only because the model changed nothing, so it shows safety, not lift.
+The direction of the 8-window pilot holds on 40 windows. Qwen3-14B on 40 windows is still open.
+**Decision.** Recipe unchanged in substance: the model may word the report, never decide; fault streams come from the rules.
+

@@ -49,7 +49,7 @@ morning), after the night on the night host. Do one pass, report, stop. The rule
 1b. ~~**Escalation inbox, pooled read**~~ Done 2026-10-31 on 5 nights (`reports/escalation-inbox-2026-10-31.md`): residue escalation pays on dev.
    The inbox keeps running: answer it in step 2b every pass.
 1c. **Job R model arms** (C5d): on the day host, on power, at most 30 min a pass, `nice`d, one model loaded at a time (16k context):
-   Qwen3-14B and gemma-4-e4b, R2-R4 (pilot on 8 windows done, iterations 16 and 19), then the full 40 windows in chunks
+   Qwen3-14B and gemma-4-e4b, R2-R4 (pilot on 8 windows done, iterations 16 and 19), then the full 40 windows in chunks (gemma-4-e4b done 2026-10-31, Qwen3-14B next)
    (`review_eval.py run --until`). Battery: skip, say so.
 1d. ~~**Ontology experiments**~~ Experiments 2-5 written off 2026-10-25 (owner; O1 answered the question). Instead: backlog open
    items 4 (knowledge or model) and 6 (ARF cost), on the day host like 1c.

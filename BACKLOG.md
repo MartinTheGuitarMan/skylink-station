@@ -8,7 +8,7 @@ written off with a reason (stop rule, `docs/success-criteria.md`). New ideas go 
    `dev-c2-1x` (holds), C7 and C8 shown working on dev (`reports/verdict-dev-r.md`). **Paused 2026-10-31**: the night host's disk ran
    out 37 min into `locked-101` and the Docker VM's disk broke. After that, 102-105 and the C7 replicate `locked-101b`, one a night.
 2. **Job R, retrospective review (C5d)**: rules arm done on dev seed 3 (iteration 13, R1 0.943). Pilot on 8 windows done for
-   Qwen3-14B and gemma-4-e4b, R2-R4 (iterations 16, 19). Left: 40 windows with two model sizes; then ask the owner whether job R joins
+   Qwen3-14B and gemma-4-e4b, R2-R4 (iterations 16, 19). gemma-4-e4b on 40 windows done 2026-10-31. Left: Qwen3-14B on 40 windows; then ask the owner whether job R joins
    the locked runs.
 3. **Night host disk: where do 70-90 GB a night go?** Time Machine local snapshots holding the rewritten blocks of the VM's sparse disk is
    the leading explanation, not proved. The owner's call how to change it (it is outside this repo).
