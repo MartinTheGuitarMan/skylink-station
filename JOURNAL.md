@@ -789,4 +789,7 @@ mcp-minions now refuses a required value that is not in the source, and a summar
 (none was missing enough to matter: 0 invalid). R4 equals R1 only because the model changed nothing, so it shows safety, not lift.
 The direction of the 8-window pilot holds on 40 windows. Qwen3-14B on 40 windows is still open.
 **Decision.** Recipe unchanged in substance: the model may word the report, never decide; fault streams come from the rules.
-
+**Same risk in job P, not fixed today.** `PROPOSAL_SCHEMA` and `EXPLAIN_SCHEMA` in `src/skylink/agent/jobs.py` require free-text `reason` and `evidence`.
+If the night host's mcp-minions has the same check, every job P proposal fails and reads as "no lift". Nothing queued uses it, and it cannot be
+tried live today. Road step 5 now says to check it on a dev seed before the locked C5a/C5b.
+Open ideas: 6 (BACKLOG.md, Open).
