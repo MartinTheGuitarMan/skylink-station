@@ -8,4 +8,4 @@ dev-s2-drift config/scenario-default.toml 2 7 60
 dev-c2-1x config/scenario-default.toml 3 0.0833 1
 dev-s2-r config/scenario-default.toml 2 7 60
 dev-s1-r config/scenario-default.toml 1 7 60
-locked-101 config/scenario-default.toml 101 7 60
+# locked-101 config/scenario-default.toml 101 7 60   # paused 2026-10-31: stopped at block 1774 of 10080 by a full host disk, see JOURNAL.md; a pass requeues it after the VM and C8 are checked
