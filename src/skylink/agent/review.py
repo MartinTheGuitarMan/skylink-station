@@ -208,14 +208,14 @@ def report_schema(w: Window, with_overrides: bool = False) -> dict:
     props = {"labels": {"type": "array", "items": label_item, "minItems": len(ids), "maxItems": len(ids)},
              "fault_streams": {"type": "array", "items": {"type": "string", "enum": STREAMS}, "maxItems": len(STREAMS)},
              "summary": {"type": "string", "maxLength": 700}}
-    req = ["labels", "fault_streams", "summary"]
+    req = ["labels", "fault_streams"]   # summary is free text: minions extract refuses a required value not in the source; summary_check below judges it
     if with_overrides:
         props["overrides"] = {"type": "array", "maxItems": len(ids), "items": {
             "type": "object", "properties": {"id": {"type": "string", "enum": ids}, "cause": {"type": "string", "enum": LABELS},
                                              "reason": {"type": "string", "maxLength": 200}},
-            "required": ["id", "cause", "reason"], "additionalProperties": False}}
+            "required": ["id", "cause"], "additionalProperties": False}}
         del props["labels"]
-        req = ["overrides", "fault_streams", "summary"]
+        req = ["overrides", "fault_streams"]
     return {"type": "object", "properties": props, "required": req, "additionalProperties": False}
 
 
