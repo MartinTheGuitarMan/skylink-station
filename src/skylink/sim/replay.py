@@ -9,6 +9,7 @@ import argparse
 import datetime as dt
 import hashlib
 import json
+import shutil
 import signal
 import sys
 import time
@@ -132,6 +133,9 @@ def run(args: argparse.Namespace) -> int:
     for k in range(ck["next_block"], total_blocks):
         if stop["flag"] or (deadline and dt.datetime.now(deadline.tzinfo) >= deadline):
             break
+        if shutil.disk_usage(out_dir).free < args.min_free_gb * 2**30:
+            print(f"disk low: under {args.min_free_gb} GB free, stopping at block {k}", file=sys.stderr, flush=True)
+            break
         blocks = {s: g.block(k) for s, g in gens.items()}
         per = {s: SPECS[s].rate_hz * batch_s for s in gens}
         for b in range(BLOCK_S // batch_s):
@@ -175,6 +179,7 @@ def main() -> int:
     p.add_argument("--runs-dir", default="runs")
     p.add_argument("--resume", action="store_true")
     p.add_argument("--until", help="stop cleanly at this Europe/Stockholm clock time, e.g. 06:00")
+    p.add_argument("--min-free-gb", type=float, default=0, help="stop cleanly when the disk of --runs-dir has less free")
     h = sub.add_parser("hash")
     h.add_argument("--config", default="config/scenario-default.toml")
     h.add_argument("--seed", type=int)

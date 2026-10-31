@@ -23,7 +23,8 @@ case "$1" in
   info) [ -z "${DOCKER_DOWN:-}" ]; exit $?;;
   inspect) echo "${INFLUX_STATE:-healthy}";;
   compose) [ "$2 $COMPOSE_FAIL" = "up up" ] && exit 1; exit 0;;
-  exec) printf "Filesystem 1024-blocks Used Available\\nx 100000000 1 90000000 1%% /\\n";;
+  exec) [ -n "${VM_DISK_DEAD:-}" ] && { echo "OCI runtime exec failed: input/output error"; exit 1; }
+        printf "Filesystem 1024-blocks Used Available\\nx 100000000 1 90000000 1%% /\\n";;
 esac
 exit 0''',
     # colima keeps its state in a file: status fails while off
@@ -58,7 +59,7 @@ def sandbox(tmp: Path) -> Path:
 
 
 def env_for(tmp: Path, bindir: Path, **extra) -> dict:
-    return {**os.environ, "PATH": f"{bindir}:{os.environ['PATH']}", "FORCE": "1", "WINDOW_END": "23:59", "MIN_FREE_GB": "0",
+    return {**os.environ, "PATH": f"{bindir}:{os.environ['PATH']}", "FORCE": "1", "WINDOW_END": "23:59", "MIN_FREE_GB": "0", "MIN_SIM_FREE_GB": "0",
             "CALLS": str(tmp / "calls.txt"), "VMSTATE": str(tmp / "vm-on"), "VM_WAIT_S": "0", "INFLUX_WAIT_S": "0",
             "VM_BUSY_RE": "sleep 37", **extra}
 
@@ -113,6 +114,27 @@ def test_influx_never_healthy_is_a_visible_failed_night(tmp_path):
     b = sandbox(tmp_path)
     rc, summary, _ = night(tmp_path, b, INFLUX_STATE="starting")
     assert rc == 1 and "InfluxDB not healthy" in summary and "failed: docker stack not available" in summary
+
+
+def test_vm_disk_that_does_not_answer_stops_the_simulations(tmp_path):
+    b = sandbox(tmp_path)                                       # the VM disk broke on 2026-10-30/31 with InfluxDB still reported as up
+    (tmp_path / "config/queue.txt").write_text("q1 cfg.toml 101 7 60\n")
+    _, summary, _ = night(tmp_path, b, VM_DISK_DEAD="1")
+    assert "sim queue skipped: VM disk unreadable" in summary and "sim q1" not in summary
+
+
+def test_host_disk_without_room_for_a_run_stops_the_simulations(tmp_path):
+    b = sandbox(tmp_path)
+    (tmp_path / "config/default-queue.txt").write_text("d-a cfg.toml 3 7 60\n")
+    _, summary, _ = night(tmp_path, b, MIN_SIM_FREE_GB="100000000")
+    assert "sim queue skipped: disk low for a simulation" in summary and "sim q1" not in summary and "sim d-a" not in summary
+
+
+def test_simulation_is_told_when_to_stop_for_disk(tmp_path):
+    b = sandbox(tmp_path)
+    (b / "uv").write_text('#!/bin/bash\necho "$*" >> runs/sim-args.txt\nexit 0')
+    night(tmp_path, b, MIN_RUN_FREE_GB="7")
+    assert "--min-free-gb 7" in (tmp_path / "runs/sim-args.txt").read_text()
 
 
 def test_early_stop_before_start_does_not_touch_the_vm(tmp_path):

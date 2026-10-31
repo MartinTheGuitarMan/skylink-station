@@ -1,3 +1,5 @@
+import json
+
 import numpy as np
 
 from skylink.sim.events import build_plan
@@ -64,3 +66,33 @@ def test_dropout_removes_points_and_stuck_holds():
     m = (b["t"] >= stuck.t0) & (b["t"] < stuck.t1)
     if m.sum() > 2:
         assert np.ptp(b["value"][m]) < 1e-9
+
+
+def _replay(tmp_path, monkeypatch, run_id, free_gb, resume=False):
+    """Run the replay offline (stub Influx and HTTP) on 0.01 days; free_gb(call number) is the disk's free space."""
+    import argparse
+    import types
+
+    from skylink.sim import replay
+
+    class Http:
+        def __init__(self, **_): pass
+        def post(self, *_, **__): return types.SimpleNamespace(raise_for_status=lambda: None)
+
+    calls = iter(range(10**6))
+    monkeypatch.setattr(replay.httpx, "Client", Http)
+    monkeypatch.setattr(replay, "Influx", lambda: types.SimpleNamespace(write=lambda *_: None))
+    monkeypatch.setattr(replay.shutil, "disk_usage", lambda _: types.SimpleNamespace(free=free_gb(next(calls)) * 2**30))
+    args = argparse.Namespace(config="config/scenario-default.toml", run_id="r", seed=1, days=0.01, speed=0, until=None,
+                              nodered="http://x", edge="", runs_dir=str(tmp_path / run_id), resume=resume, min_free_gb=10)
+    assert replay.run(args) == 0
+    return json.loads((tmp_path / run_id / "r/summary.json").read_text())
+
+
+def test_low_disk_stops_at_a_block_boundary_and_resume_keeps_the_chain_hash(tmp_path, monkeypatch):
+    whole = _replay(tmp_path, monkeypatch, "whole", lambda _: 500)
+    assert whole["finished"]
+    cut = _replay(tmp_path, monkeypatch, "cut", lambda i: 500 if i < 5 else 5)
+    assert not cut["finished"] and cut["next_block"] == 5
+    resumed = _replay(tmp_path, monkeypatch, "cut", lambda _: 500, resume=True)
+    assert resumed["finished"] and resumed["hash"] == whole["hash"] and resumed["emitted"] == whole["emitted"]

@@ -4,7 +4,8 @@
 #
 # queue.txt lines: <run-id> <scenario.toml> <seed> <days> <speed> [edge-config]   (# comments ok)
 # Installed on the night host as the system daemon se.skylink.nightly (ops/README.md).
-# Stops early when free disk drops below MIN_FREE_GB (default 3) or the colima VM disk that holds InfluxDB below MIN_VM_FREE_GB (6). Writes runs/last-night.txt: one line per
+# Stops early when free disk drops below MIN_FREE_GB (default 3) or the colima VM disk that holds InfluxDB below MIN_VM_FREE_GB (6). A simulation does not start under
+# MIN_SIM_FREE_GB (100) on the host or when the VM disk cannot be read, and stops itself under MIN_RUN_FREE_GB (10). Writes runs/last-night.txt: one line per
 # item (ok / stopped / cut / failed), read by the daytime loop (docs/daily-loop.md).
 # Night fallback: when the queues above gave nothing to do (no new work since the last pass), it runs
 # config/default-queue.txt (dev seeds only), runs whatever code the night host has, and appends the commit it ran
@@ -19,6 +20,8 @@ export INFLUX_URL=http://localhost:8086
 END="${WINDOW_END:-06:00}"
 MIN_FREE_GB="${MIN_FREE_GB:-3}"
 MIN_VM_FREE_GB="${MIN_VM_FREE_GB:-6}"   # InfluxDB lives on the colima VM disk (100 GB since 2026-10-24); it filled up on 2026-10-19 and voided dev-s2-drift
+MIN_SIM_FREE_GB="${MIN_SIM_FREE_GB:-100}"   # the host lost 89 GB during a 7-day run on 2026-10-29/30, and ran out in 37 min on 2026-10-30/31, which broke the VM's disk
+MIN_RUN_FREE_GB="${MIN_RUN_FREE_GB:-10}"    # a running simulation stops at a block boundary under this; the VM must never see a full host disk
 SUMMARY=runs/last-night.txt
 ran=0
 ran_main=0   # set when a queued simulation, collect, agent eval or bench ran (the escalation inbox does not count)
@@ -31,7 +34,12 @@ free_gb() { df -g . | awk 'NR==2 {print $4}'; }
 vm_free_gb() { docker exec skylink-influxdb-1 df -Pk /var/lib/influxdb2 2>/dev/null | awk 'NR==2 {print int($4/1048576)}'; }
 note() { echo "$*" >> "$SUMMARY"; }
 # prints why simulations (the only InfluxDB writers) must not start, or nothing
-vm_reason() { local vm; vm=$(vm_free_gb); [ -n "$vm" ] && [ "$vm" -lt "$MIN_VM_FREE_GB" ] && echo "VM disk low (InfluxDB volume: $vm GB free, need $MIN_VM_FREE_GB)"; }
+vm_reason() {
+  [ "$(free_gb)" -lt "$MIN_SIM_FREE_GB" ] && { echo "disk low for a simulation ($(free_gb) GB free, need $MIN_SIM_FREE_GB)"; return; }
+  local vm; vm=$(vm_free_gb)
+  [ -n "$vm" ] || { echo "VM disk unreadable (InfluxDB volume did not answer)"; return; }
+  [ "$vm" -lt "$MIN_VM_FREE_GB" ] && echo "VM disk low (InfluxDB volume: $vm GB free, need $MIN_VM_FREE_GB)"
+}
 # prints why the night must stop (window over, disk low), or nothing
 stop_reason() {
   local now; now=$(TZ=Europe/Stockholm date +%H%M)
@@ -91,7 +99,7 @@ sim_queue() {  # $1 = queue file
     echo "$(date '+%F %T') run $run (seed $seed, $days d, ${speed}x)"; ran=1; ran_main=1
     resume=""; [ -f "runs/$run/checkpoint.json" ] && resume="--resume"
     nice -n 15 uv run skylink-sim run --config "$scen" --run-id "$run" --seed "$seed" --days "$days" \
-        --speed "$speed" --until "$END" $resume
+        --speed "$speed" --until "$END" --min-free-gb "$MIN_RUN_FREE_GB" $resume
     curl -s -XPOST localhost:8000/flush >/dev/null
     if grep -qs '"finished": true' "runs/$run/summary.json"; then note "sim $run: ok"; else note "sim $run: stopped (resumes next night)"; fi
   done < "$1"

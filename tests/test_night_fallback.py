@@ -39,7 +39,7 @@ def sandbox(tmp: Path, queue: str, default: str) -> Path:
 
 
 def night(tmp: Path, bindir: Path) -> str:
-    env = {**os.environ, "PATH": f"{bindir}:{os.environ['PATH']}", "FORCE": "1", "WINDOW_END": "23:59", "MIN_FREE_GB": "0", "VM_BUSY_RE": "no-such-process"}
+    env = {**os.environ, "PATH": f"{bindir}:{os.environ['PATH']}", "FORCE": "1", "WINDOW_END": "23:59", "MIN_FREE_GB": "0", "MIN_SIM_FREE_GB": "0", "VM_BUSY_RE": "no-such-process"}
     subprocess.run(["bash", "scripts/nightly.sh"], cwd=tmp, env=env, check=True, capture_output=True)
     return (tmp / "runs/last-night.txt").read_text()
 
