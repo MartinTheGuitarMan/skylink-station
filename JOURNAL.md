@@ -814,3 +814,11 @@ before it touches the VM; its two scripts append (not prepend) `/opt/homebrew/bi
 check, export wall time and file size on a real run (no estimate made), `cold-export.sh` end to end with the VM lease. A first real
 export of a small dev run should be the first live test, with `--verify` after. Nothing was run on the night host, nothing deleted.
 Open ideas: 6 (BACKLOG.md, Open).
+
+## Recovery 2026-10-31: VM restarted by the owner's go, data checked, first cold export
+
+The owner cleared the host's local snapshots (11 to 101 GB free, which supports the snapshot explanation of the night entry) and told Claude to
+restart the VM. The VM's data disk mounted after journal recovery and is flagged for a filesystem check, not yet run. On start InfluxDB began a full
+compaction at about 3 GB a minute on the host, so the stack was stopped until the space was back, then started under a free-disk watch.
+Point counts of all 12 dev runs against `summary.json`: 11 match exactly on every stream; `dev-s2-drift` is 18 % short, the known hole of 2026-10-19.
+`locked-101` was not read. First live cold export: `base-smoke-1`, 516 641 points, counts and checksums verified, 3.1 MB. No raw data was dropped.
